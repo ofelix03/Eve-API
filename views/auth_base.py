@@ -23,11 +23,10 @@ class AuthBaseView(BaseView):
         try:
             Authenticator.get_instance().authenticate(request)
         except UserAuthFail:
-            pass
-            # if name not in UNGUARDED_ENDPOINTS:
-            #     return response({
-            #         'ok': False,
-            #         "errors": {
-            #             "message": "Authentication failed"
-            #         }
-            #     }, 401)
+            if name not in UNGUARDED_ENDPOINTS:
+                return response({
+                    'ok': False,
+                    "errors": {
+                        "message": "Authentication failed"
+                    }
+                }, 401)
