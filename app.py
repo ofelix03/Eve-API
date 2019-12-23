@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS
 
 from api.views.event_category import EventCategoryView
+from api.views.images import ImagesView
 from api.views.event import EventView
 from api.views.ticket import TicketsView
 from api.views.user import UserView
@@ -27,6 +28,7 @@ db.init_app(app)
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
+ImagesView.register(app, route_base='images')
 EventCategoryView.register(app, route_base='event-categories')
 EventView.register(app, route_base='events')
 TicketsView.register(app, route_base='tickets')
@@ -41,7 +43,7 @@ CountryView.register(app, route_base='countries')
 GeneralView.register(app, route_base='general')
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0")
+    app.run(host="0.0.0.0", port=5000)
     # app.run(debug=True, use_debugger=False, use_reloader=False, passthrough_errors=True)
 
 #
