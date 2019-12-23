@@ -5,13 +5,16 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, or_, and_, text
 from sqlalchemy.orm import relationship
 from sqlalchemy import Boolean, Column
+from sqlalchemy import cast, Numeric
 
 from api import utils
 from api.models.event_periods import EventPeriods
 from api.models.pagination_cursor import PaginationCursor
 from api.models.domain.user_payment_info import PaymentTypes
 from api.exceptions import payments as payment_exceptions
-from api import exceptions
+from api.repositories import exceptions
+
+# from api import exceptions
 from api.models.domain.user_payment_info import DiscountTypes
 from api.utils import TicketDiscountOperator, TicketDiscountType
 
@@ -533,7 +536,7 @@ class Event(db.Model):
     venue = db.Column(db.String)
     start_datetime = db.Column(db.DateTime)
     end_datetime = db.Column(db.DateTime)
-    cover_image = db.Column(db.String, default="https://source.unsplash.com/featured/")
+    cover_image = db.Column(db.String)
     organizers = relationship('EventOrganizer', backref='events')
     speakers = relationship('EventSpeaker', backref='events')
     media = relationship('EventMedia', backref='events')
@@ -1047,16 +1050,18 @@ class Event(db.Model):
 
         if cursor and cursor.after:
             query = query.filter(
-                    func.extract('EPOCH', EventReview.created_at) > cursor.get_after_as_float())
+                    func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) < func.round(
+                        cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
             query = query.filter(
-                    func.extract('EPOCH', EventReview.created_at) < cursor.get_before_as_float())
+                    func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) > func.round(
+                        cursor.get_before_as_float(), 3))
 
         if cursor and cursor.limit:
-            query = query.order_by(EventReview.created_at).limit(cursor.limit)
+            query = query
 
-        reviews = query.all()
+        reviews = query.order_by(EventReview.created_at.desc()).limit(cursor.limit).all()
 
         if reviews:
             cursor.set_before(reviews[0].created_at)
@@ -1172,16 +1177,18 @@ class Event(db.Model):
 
     def set_as_poster(self, file):
         file.poster = True
+        self.cover_image = file.source_url
+        db.session.add(self)
         db.session.add(file)
         db.session.commit()
         q = """UPDATE event_media SET poster = False WHERE id != :mediaId and event_id=:eventId"""
         db.engine.execute(text(q).bindparams(mediaId=file.id, eventId=self.id))
         # q = """UPDATE event_media SET is_poster = TRUE WHERE id = :mediaId and event_id=:eventId"""
         # db.engine.execute(text(q).bindparams(mediaId=file.id, eventId=self.id))
-        # db.session.commit()
+        db.session.commit()
 
     def get_poster(self):
-        image = db.session.query(EventMedia).filter(EventMedia.event_id==self.id).filter(EventMedia.poster==True).first()
+        image = db.session.query(EventMedia).filter(EventMedia.event_id==self.id).filter(EventMedia.poster == True).first()
         return image.source_url if image else None
 
 
@@ -2368,11 +2375,12 @@ class EventReview(db.Model):
     event_id = db.Column(db.String, db.ForeignKey('events.id', onupdate=CASCADE, ondelete=CASCADE))
     event = relationship(Event)
     comments = relationship('EventReviewComment', backref='event_reviews')
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, content=None, author_id=None, author=None, media=None, event_id=None, event=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
         self.published_at = datetime.now()
 
         if content:
@@ -2434,13 +2442,11 @@ class EventReview(db.Model):
             .delete()
         db.session.commit()
 
-    def downvote(self, author):
-        downvote = EventReviewDownvote()
-
-        if self.is_downvoted_by(author):
+    def downvote(self, downvote):
+        if self.is_downvoted_by(downvote.author):
             raise exceptions.AlreadyDownvoted()
 
-        if self.is_upvoted_by(author):
+        if self.is_upvoted_by(downvote.author):
             raise exceptions.AlreadyUpvoted()
         self.downvotes += [downvote]
         db.session.add(self)
@@ -2475,7 +2481,7 @@ class EventReview(db.Model):
     def get_comment_only(self, comment_id):
         return db.session.query(EventReviewComment) \
             .filter(EventReviewComment.id == comment_id) \
-            .filter(EventReviewComment.review_id==self.id) \
+            .filter(EventReviewComment.review_id == self.id) \
             .first()
 
     def get_review_comment(self, comment_id):
@@ -2491,7 +2497,7 @@ class EventReview(db.Model):
             .filter(EventReviewComment.id == comment_id) \
             .first()
 
-    def get_review_comments(self, cursor=PaginationCursor()):
+    def get_review_comments(self, cursor):
         query = db.session.query(EventReviewComment).options(
                 joinedload(EventReviewComment.upvotes),
                 joinedload(EventReviewComment.downvotes),
@@ -2500,16 +2506,12 @@ class EventReview(db.Model):
         ).filter(EventReviewComment.review_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', EventReviewComment.created_at) > cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', EventReviewComment.created_at) < cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) > func.round(cursor.get_before_as_float()), 3)
 
-        if cursor and cursor.limit:
-            query = query.order_by(EventReviewComment.created_at).limit(cursor.limit)
-
-        comments = query.all()
-
+        comments = query.order_by(EventReviewComment.created_at.desc()).limit(cursor.limit).all()
         if comments:
             cursor.set_before(comments[0].created_at)
             cursor.set_after(comments[-1].created_at)
@@ -2530,7 +2532,7 @@ class EventReviewMedia(db.Model):
     poster = Column(Boolean, default=False)
     review = relationship(EventReview)
     review_id = db.Column(db.String, db.ForeignKey('event_reviews.id', ondelete=CASCADE, onupdate=CASCADE))
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, source_url=None, format=None, event=None, is_poster=False):
@@ -2540,6 +2542,7 @@ class EventReviewMedia(db.Model):
         self.format = format
         self.event = event
         self.is_poster = is_poster
+        self.created_at = datetime.now()
 
     @classmethod
     def create(cls, event=None, source_url=None, format=None, is_poster=False):
@@ -2575,11 +2578,12 @@ class EventReviewUpvote(db.Model):
     author = relationship(User)
     review_id = db.Column(db.String, db.ForeignKey('event_reviews.id', ondelete=CASCADE, onupdate=CASCADE))
     review = relationship(EventReview)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, review=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -2596,10 +2600,11 @@ class EventReviewDownvote(db.Model):
     author = relationship(User)
     review_id = db.Column(db.String, db.ForeignKey('event_reviews.id', ondelete=CASCADE, onupdate=CASCADE))
     review = relationship(EventReview)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, review=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -2721,7 +2726,7 @@ class EventReviewComment(db.Model):
 
     id = db.Column(db.String, primary_key=True)
     content = db.Column(db.String)
-    published_at = db.Column(db.DateTime, default=datetime.now())
+    published_at = db.Column(db.DateTime)
     upvotes = relationship('EventReviewCommentUpvote')
     downvotes = relationship('EventReviewCommentDownvote')
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
@@ -2730,11 +2735,13 @@ class EventReviewComment(db.Model):
     review = relationship(EventReview)
     media = relationship('EventReviewCommentMedia')
     responses = relationship('EventReviewCommentResponse')
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, content=None, author=None, media=None):
         self.id = str(uuid.uuid4())
+        self.published_at = datetime.now()
+        self.created_at = datetime.now()
 
         if content:
             self.content = content
@@ -2778,11 +2785,11 @@ class EventReviewComment(db.Model):
             .count()
 
     def upvote(self, author):
-        upvote = EventReviewCommentUpvote(author=author)
         if self.is_upvoted_by(author):
             raise exceptions.AlreadyUpvoted()
         if self.is_downvoted_by(author):
             raise exceptions.AlreadyDownvoted()
+        upvote = EventReviewCommentUpvote(author=author)
         self.upvotes += [upvote]
         db.session.commit()
 
@@ -2800,12 +2807,14 @@ class EventReviewComment(db.Model):
             .filter(EventReviewCommentUpvote.comment_id == self.id) \
             .filter(EventReviewCommentUpvote.author_id == author.id) \
             .delete()
+        db.session.commit()
 
     def remove_downvote(self, author):
         db.session.query(EventReviewCommentDownvote) \
             .filter(EventReviewCommentDownvote.comment_id == self.id) \
             .filter(EventReviewCommentDownvote.author_id == author.id) \
             .delete()
+        db.session.commit()
 
     def has_response(self, response_id):
         return db.session.query(db.session.query(EventReviewCommentResponse) \
@@ -2855,15 +2864,12 @@ class EventReviewComment(db.Model):
         ).filter(EventReviewCommentResponse.comment_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', EventReviewCommentResponse.created_at) > cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', EventReviewCommentResponse.created_at) < cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query.order_by(EventReviewCommentResponse.created_at).limit(cursor.limit)
-
-        responses = query.all()
+        responses = query.order_by(EventReviewCommentResponse.created_at.desc()).limit(cursor.limit).all()
 
         if responses:
             cursor.set_before(responses[0].created_at)
@@ -2890,11 +2896,12 @@ class EventReviewCommentMedia(db.Model):
     poster = Column(Boolean, default=False)
     comment_id = db.Column(db.String, db.ForeignKey('event_review_comments.id', ondelete=CASCADE, onupdate=CASCADE))
     comment = relationship(EventReviewComment)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, source_url=None, format=None, event=None, is_poster=False):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
         self.filename = utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
@@ -2935,10 +2942,11 @@ class EventReviewCommentUpvote(db.Model):
     author = relationship(User)
     comment_id = db.Column(db.String, db.ForeignKey('event_review_comments.id', ondelete=CASCADE, onupdate=CASCADE))
     comment = relationship(EventReviewComment)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, comment=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -2955,10 +2963,11 @@ class EventReviewCommentDownvote(db.Model):
     author = relationship(User)
     comment_id = db.Column(db.String, db.ForeignKey('event_review_comments.id', ondelete=CASCADE, onupdate=CASCADE))
     comment = relationship(EventReviewComment)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, comment=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -2972,7 +2981,7 @@ class EventReviewCommentResponse(db.Model):
 
     id = db.Column(db.String, primary_key=True)
     content = db.Column(db.String)
-    published_at = db.Column(db.DateTime, default=datetime.now())
+    published_at = db.Column(db.DateTime)
     upvotes = relationship('EventReviewCommentResponseUpvote')
     downvotes = relationship('EventReviewCommentResponseDownvote')
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
@@ -2980,10 +2989,12 @@ class EventReviewCommentResponse(db.Model):
     comment_id = db.Column(db.String, db.ForeignKey('event_review_comments.id', ondelete=CASCADE, onupdate=CASCADE))
     comment = relationship(EventReviewComment)
     media = relationship('EventReviewCommentResponseMedia')
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, content=None, author_id=None, author=None, media=None):
         self.id = str(uuid.uuid4())
+        self.published_at = datetime.now();
+        self.created_at = datetime.now()
 
         if content:
             self.content = content
@@ -3059,11 +3070,12 @@ class EventReviewCommentResponseMedia(db.Model):
     poster = Column(Boolean, default=False)
     response_id = db.Column(db.String, db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventReviewCommentResponse)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, source_url=None, format=None, event=None, is_poster=False):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
         self.filename = utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
@@ -3104,10 +3116,11 @@ class EventReviewCommentResponseUpvote(db.Model):
     author = relationship(User)
     response_id = db.Column(db.String, db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventReviewCommentResponse)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, response=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -3124,10 +3137,11 @@ class EventReviewCommentResponseDownvote(db.Model):
     author = relationship(User)
     response_id = db.Column(db.String, db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventReviewCommentResponse)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, response=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -3141,7 +3155,7 @@ class EventStreamComment(db.Model):
 
     id = db.Column(db.String, primary_key=True)
     content = db.Column(db.String)
-    published_at = db.Column(db.DateTime, default=datetime.now())
+    published_at = db.Column(db.DateTime)
     upvotes = relationship('EventStreamCommentUpvote')
     downvotes = relationship('EventStreamCommentDownvote')
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
@@ -3152,6 +3166,7 @@ class EventStreamComment(db.Model):
 
     def __init__(self):
         self.id = str(uuid.uuid4())
+        self.published_at = datetime.now()
 
 
 class EventStreamCommentMedia(db.Model):
@@ -3175,10 +3190,11 @@ class EventStreamCommentUpvote(db.Model):
     author = relationship(User)
     commennt_id = db.Column(db.String, db.ForeignKey('event_stream_comments.id', ondelete=CASCADE, onupdate=CASCADE))
     comment = relationship(EventStreamComment)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, author_id=None, comment=None, comment_id=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -3201,10 +3217,11 @@ class EventStreamCommentDownvote(db.Model):
     author = relationship(User)
     comment_id = db.Column(db.String, db.ForeignKey('event_stream_comments.id', ondelete=CASCADE, onupdate=CASCADE))
     comment = relationship(EventStreamComment)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, author_id=None, comment=None, comment_id=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -3224,7 +3241,7 @@ class EventStreamCommentResponse(db.Model):
 
     id = db.Column(db.String, primary_key=True)
     content = db.Column(db.String)
-    published_at = db.Column(db.DateTime, default=datetime.now())
+    published_at = db.Column(db.DateTime)
     upvotes = relationship('EventStreamCommentResponseUpvote')
     downvotes = relationship('EventStreamCommentResponseDownvote')
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
@@ -3234,6 +3251,7 @@ class EventStreamCommentResponse(db.Model):
 
     def __init__(self):
         self.id = str(uuid.uuid4())
+        self.published_at =datetime.now()
 
 
 class EventStreamCommentResponseMedia(db.Model):
@@ -3257,10 +3275,11 @@ class EventStreamCommentResponseUpvote(db.Model):
     author = relationship(User)
     response_id = db.Column(db.String, db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventStreamCommentResponse)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, author_id=None, response=None, response_id=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -3283,10 +3302,11 @@ class EventStreamCommentResponseDownvote(db.Model):
     author = relationship(User)
     response_id = db.Column(db.String, db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventStreamCommentResponse)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, author=None, author_id=None, response=None, response_id=None):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
 
         if author:
             self.author = author
@@ -3354,7 +3374,7 @@ class Brand(db.Model):
     description = db.Column(db.String)
     country = db.Column(db.String)
     image = db.Column(db.String)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
     creator = relationship(User)
     creator_id = db.Column(db.String, db.ForeignKey('users.id'))
@@ -3365,6 +3385,7 @@ class Brand(db.Model):
     def __init__(self, name=None, description=None, country=None, creator=None, category=None):
         self.id = str(uuid.uuid4())
         self.image = 'https://source.unsplash.com/random/500*300'
+        self.created = datetime.now()
 
         if name:
             self.name = name
@@ -3472,12 +3493,13 @@ class BrandValidation(db.Model):
     id = db.Column(db.String, primary_key=True)
     validator_id = db.Column(db.ForeignKey('users.id'))
     validator = relationship('User')
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     brand_id = db.Column(db.ForeignKey('brands.id', ondelete=CASCADE, onupdate=CASCADE))
     brand = relationship('Brand')
 
     def __init__(self, validator):
         self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
         self.validator = validator
 
 
@@ -3485,7 +3507,7 @@ class UserFollower(db.Model):
     __tablename__ = 'user_followers'
 
     id = db.Column(db.String, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     follower_id = db.Column(db.String, db.ForeignKey('users.id', ondelete='CASCADE', onupdate='CASCADE'))
     user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete='CASCADE', onupdate='CASCADE'))
     follower = relationship('User', foreign_keys=[follower_id])
@@ -3493,10 +3515,12 @@ class UserFollower(db.Model):
 
     def __init__(self, user_id=None, user=None, follower_id=None, follower=None):
         self.id = str(uuid.uuid4())
+        self.created = datetime.now()
         self.user_id = user_id
         self.user = user
         self.follower_id = follower_id
         self.follower = follower
+
 
 
 class UserPaymentDetails(db.Model):
