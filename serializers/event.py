@@ -194,13 +194,13 @@ class EventTicketDiscountTypeSchema(Schema):
 class CreateTicketTypeDiscountSchema(Schema):
     name = fields.String(required=True)
     type_id = fields.String(required=True, attribute="type")
-    from_datetime = fields.DateTime()
-    to_datetime = fields.DateTime()
+    from_datetime = fields.DateTime(required=True)
+    to_datetime = fields.DateTime(required=True)
     rate = fields.Integer(required=True)
-    operator = fields.String()
-    min_ticket_qty = fields.Integer()
-    max_ticket_qty = fields.Integer()
-    ticket_qty = fields.Integer()
+    operator = fields.String(allow_none=True)
+    min_ticket_qty = fields.Integer(allow_none=True)
+    max_ticket_qty = fields.Integer(allow_none=True)
+    ticket_qty = fields.Integer(allow_none=True)
 
 
 class UpdateTicketTypeDiscountSchema(Schema):
@@ -241,14 +241,16 @@ class CreateEventReviewSchema(Schema):
 
 class EventReviewMediaSchema(Schema):
     id = fields.String(required=True)
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
+    filename = fields.String()
     review_id = fields.String(required=True)
 
 
 class CreateEventReviewMediaSchema(Schema):
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
+    filename = fields.String()
 
 
 class EventStreamSchema(Schema):
@@ -263,8 +265,8 @@ class EventStreamSchema(Schema):
 
 class EventStreamMediaSchema(Schema):
     id = fields.String(required=True)
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
     stream_id = fields.String(required=True)
 
 
@@ -279,6 +281,7 @@ class EventReviewCommentSchema(Schema):
     author = fields.Nested(UserSummarySchema)
     media = fields.Nested('EventReviewMediaSchema', many=True)
     review_id = fields.String(required=True)
+    responses_count = fields.Function(lambda obj: obj.responses_count())
 
 
 class CreateEventReviewCommentSchema(Schema):
@@ -288,14 +291,15 @@ class CreateEventReviewCommentSchema(Schema):
 
 class EventReviewCommentMediaSchema(Schema):
     id = fields.String(required=True)
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
     comment_id = fields.String(required=True)
 
 
 class CreateEventReviewCommentMediaSchema(Schema):
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
+    filename = fields.String()
 
 
 class EventReviewCommentResponseSchema(Schema):
@@ -315,14 +319,15 @@ class CreateEventReviewCommentResponseSchema(Schema):
 
 
 class CreateEventReviewCommentResponseMediaSchema(Schema):
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
+    filename = fields.String()
 
 
 class EventReviewCommentResponseMediaSchema(Schema):
     id = fields.String(required=True)
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
     response_id = fields.String(required=True)
 
 
@@ -339,8 +344,9 @@ class EventStreamCommentSchema(Schema):
 
 class EventStreamCommentMediaSchema(Schema):
     id = fields.String(required=True)
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
+    filename = fields.String()
     comment_id = fields.String(required=True)
 
 
@@ -358,8 +364,9 @@ class EventStreamCommentResponseSchema(Schema):
 
 class EventStreamCommentResponseMediaSchema(Schema):
     id = fields.String(required=True)
-    type = fields.String(required=True)
-    url = fields.String(required=True)
+    format = fields.String(required=True)
+    source_url = fields.String(required=True)
+    filename = fields.String()
     response_id = fields.String(required=True)
 
 

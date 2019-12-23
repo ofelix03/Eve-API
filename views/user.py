@@ -63,6 +63,8 @@ class UserView(AuthBaseView):
             gender = data['gender']
             phone_number = data['phone_number']
 
+            print("password##", password)
+
             if not Country.has_country(data['country_id']):
                 return response({
                     "errors": {

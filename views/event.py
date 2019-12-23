@@ -17,7 +17,6 @@ from api.libs.cloudinary import upload as cloudinary_upload
 from api.libs.cloudinary import api as cloudinary_api
 
 from api.repositories import exceptions
-from api import exceptions
 import api.serializers as serializers
 from api.utils import TicketDiscountOperator, TicketDiscountType
 from api.models.domain.user_payment_info import DiscountTypes
@@ -466,9 +465,9 @@ class EventView(AuthBaseView):
                                                   recommended_to_id=event_recommendation.recommended_to.id):
                     continue
                 event.recommendations.append(event_recommendation)
-            event.update()
+                event.update()
 
-            models.Notification.create(notification_type=models.Notifications.EVENT_RECOMMENDED.value,
+                models.Notification.create(notification_type=models.Notifications.EVENT_RECOMMENDED.value,
                                        recipient=event_recommendation.recommended_to,
                                        actor=recommended_by,
                                        event=event)
@@ -904,12 +903,13 @@ class EventView(AuthBaseView):
         data = request.get_json()
         try:
             data = serializers.create_event_review_schema.load(data)
+            print('data###', data)
             content = data['content']
             author = Authenticator.get_instance().get_auth_user()
             media = []
             if 'media' in data:
                 for m in data['media']:
-                    media.append(EventReviewMedia(type=m['type'], url=m['url']))
+                    media.append(EventReviewMedia(source_url=m['source_url'], format=m['format']))
             event = models.Event.get_event_only(event_id)
             review = EventReview(content=content, author_id=author.id, media=media)
             event.reviews.append(review)
@@ -970,7 +970,14 @@ class EventView(AuthBaseView):
             total_reviews = event.get_total_event_reviews()
             return response({
                 'total_reviews': total_reviews,
-                'reviews': serializers.event_review_schema.dump(reviews, many=True)
+                'reviews': serializers.event_review_schema.dump(reviews, many=True),
+                "metadata": {
+                    "cursor": {
+                        "before": cursor.before,
+                        "after": cursor.after,
+                        "limit": cursor.limit
+                    }
+                }
             })
         except exceptions.EventNotFound:
             return response({
@@ -1079,7 +1086,7 @@ class EventView(AuthBaseView):
             return response({
                 "ok": False,
                 "code": "ALREADY_DOWNVOTED_REVIEW"
-            })
+            }, 400)
         except exceptions.EventNotFound:
             return response({
                 "ok": False,
@@ -1125,7 +1132,7 @@ class EventView(AuthBaseView):
             content = data['content']
             media = []
             for m in data['media'] if 'media' in data else []:
-                media.append(EventReviewCommentMedia(type=m['type'], url=m['url']))
+                media.append(EventReviewCommentMedia(format=m['format'], source_url=m['source_url']))
             comment = EventReviewComment(content=content, author=auth_user, media=media)
             review.add_review_comment(comment)
             return response(serializers.event_review_comment_schema.dump(comment))
@@ -1360,14 +1367,11 @@ class EventView(AuthBaseView):
         try:
             content = data['content']
             author = Authenticator.get_instance().get_auth_user()
-
             media = []
             if 'media' in data:
                 for m in data['media']:
-                    media.append(EventReviewCommentResponseMedia(type=m['type'], url=m['url']))
-
+                    media.append(EventReviewCommentResponseMedia(format=m['format'], source_url=m['source_url']))
             comment_response = EventReviewCommentResponse(content=content, author=author, media=media)
-
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             comment = review.get_comment_only(comment_id)
@@ -1448,7 +1452,14 @@ class EventView(AuthBaseView):
             return response({
                 'ok': True,
                 'total_responses': comment.get_total_responses(),
-                'responses': serializers.event_review_comment_response_schema.dump(comment_responses, many=True)
+                'responses': serializers.event_review_comment_response_schema.dump(comment_responses, many=True),
+                "metadata": {
+                    "cursor": {
+                        "before": cursor.before,
+                        "after": cursor.after,
+                        "limit": cursor.limit
+                    }
+                }
             })
         except exceptions.EventNotFound:
             return response({

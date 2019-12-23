@@ -14,7 +14,7 @@ class BaseView(FlaskView):
         return self
 
     def get_cursor(self, request):
-        cursor = PaginationCursor(cursor_limit=10)
+        cursor = PaginationCursor(cursor_limit=2)
 
         try:
             if 'cursor_after' in request.args:

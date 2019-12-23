@@ -3,6 +3,7 @@ from . import event
 from . import job
 from . import social_media
 from . import user
+from . import image
 
 event_schema = event.EventSchema()
 event_summary_schema = event.EventSummarySchema()
@@ -44,3 +45,6 @@ login_user_schema = user.LoginUserSchema()
 mobile_payment_info_schema = user.MobilePaymentInfoSchema()
 card_payment_info_schema = user.CardPaymentInfoSchema()
 notification_schema = event.NotificationSchema()
+
+
+image_schema = image.MediaSchema()

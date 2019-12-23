@@ -117,14 +117,13 @@ class TicketsView(AuthBaseView):
                     "code": "TICKET_TYPE_NOT_FOUND"
                 }, 400)
             except exceptions.AlreadyHasTicketsForEvent:
-                return response( {
+                return response({
                     "ok": False,
                     "code": "USER_ALREADY_HAS_TICKETS"
                 }, 400)
 
     @route('/<string:ticket_id>/unassign', methods=['PUT'])
     def unassign_ticket(self, ticket_id):
-
         req_payload = request.get_json()
         auth_user = Authenticator.get_instance().get_auth_user()
         if req_payload:
