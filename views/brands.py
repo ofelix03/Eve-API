@@ -4,7 +4,7 @@ from api.auth.authenticator import Authenticator
 from marshmallow.exceptions import ValidationError
 from api.serializers.brand import BrandSchema, CreateBrandSchema, BrandValidationSchema
 from api.models.event import Brand, BrandCategory, BrandValidation
-from api import exceptions
+from api.repositories import exceptions
 
 brand_schema = BrandSchema()
 create_brand_schema = CreateBrandSchema()
