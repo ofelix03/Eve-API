@@ -9,6 +9,8 @@ from api.exceptions.payments import InvalidCardExpirationDateFmt
 ENCRYPTION_KEY = 'r4e7SulNhTkt0T_QWtB0tHQ6OJYUSHC93alsL7s8ALI'
 AUTH_USER_ID = '097d05c3-de53-4de4-9efa-ef71cd64cb11'
 
+GOOGLE_CLOUD_API_KEY = 'AIzaSyCmBIPWntZIbDdKfEf7IZ_u3cjY79Eh2MU'
+
 
 class TicketDiscountOperator(object):
     EQUAL_TO = '='

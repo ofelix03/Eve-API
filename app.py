@@ -14,6 +14,7 @@ from api.views.brand_category import BrandCategoryView
 from api.views.me import MeView
 from api.views.countries import CountryView
 from api.views.general import GeneralView
+from api.views.places_autocomplete import PlacesAutocompleteView
 from api.models.event import db
 from api import db_config
 from api import utils
@@ -41,6 +42,7 @@ BrandCategoryView.register(app, route_base='brand-categories')
 MeView.register(app, route_base='me')
 CountryView.register(app, route_base='countries')
 GeneralView.register(app, route_base='general')
+PlacesAutocompleteView.register(app, route_base='places_autocomplete')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000)
