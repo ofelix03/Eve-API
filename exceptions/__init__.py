@@ -67,7 +67,6 @@ class EventSponsorNotFound(Exception):
     pass
 
 
-
 class BrandNotFound(Exception):
     pass
 
