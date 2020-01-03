@@ -3,7 +3,7 @@ from api.views.auth_base import AuthBaseView
 from api.auth.authenticator import Authenticator
 from marshmallow.exceptions import ValidationError
 from api.serializers.brand import BrandSchema, CreateBrandSchema, BrandValidationSchema
-from api.models.event import Brand, BrandCategory, BrandValidation
+from api.models.event import Brand, BrandCategory, BrandValidation, BrandMedia
 from api.repositories import exceptions
 
 brand_schema = BrandSchema()
@@ -50,8 +50,14 @@ class BrandView(AuthBaseView):
             description = data['description']
             country = data['country']
             category_id = data['category_id']
+            image = data['image']
+            image = BrandMedia(source_url=image['source_url'], format=image['format'], public_id=image['public_id'],
+                               filename=image['filename'])
+            founder = ", ".join(data['founder'])
+            founded_date = data['founded_date']
             category = BrandCategory.get_category(category_id)
-            brand = Brand.create(name=name, description=description, country=country, creator=auth_user, category=category)
+            brand = Brand.create(name=name, description=description, country=country, creator=auth_user,
+                                 category=category, image=image, founder=founder, foundedDate=founded_date)
             return response(brand_schema.dump(brand))
         except ValidationError as e:
             return response({
@@ -85,8 +91,18 @@ class BrandView(AuthBaseView):
 
             if 'category_id' in data:
                 category_id = data['category_id']
-            brand.category = BrandCategory.get_category(category_id)
-            brand.update_brand(brand)
+                brand.category = BrandCategory.get_category(category_id)
+
+            if 'founder' in data:
+                brand.founder = ", ".join(data['founder'])
+
+            if 'founded_date' in data:
+                brand.foundedDate = data['founded_date']
+
+            if 'image' in data:
+                brand.image = data['image']
+
+            brand.update()
             return response(brand_schema.dump(brand))
         except exceptions.BrandNotFound:
             return response({
