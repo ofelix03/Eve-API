@@ -1,7 +1,7 @@
 import uuid, random
 from enum import Enum
 from datetime import datetime, timedelta
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, relation
 from sqlalchemy import func, or_, and_, text
 from sqlalchemy.orm import relationship
 from sqlalchemy import Boolean, Column
@@ -24,6 +24,31 @@ CASCADE = 'CASCADE'
 
 
 db = SQLAlchemy()
+
+
+class Media(db.Model):
+    __tablename__ = 'media'
+
+    id = db.Column(db.String, primary_key=True)
+    filename = db.Column(db.String)
+    source_url = db.Column(db.String)
+    format = db.Column(db.String)
+    public_id = db.Column(db.String)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+
+    def __init__(self, source_url=None, filename=None, format=None, public_id=None):
+        self.id = str(uuid.uuid4())
+        self.filename = filename
+        self.source_url = source_url
+        self.format = format
+        self.public_id = public_id
+        self.created_at = datetime.now()
+
+    @classmethod
+    def create(cls, source_url=None, filename=None, format=None, public_id=None):
+        media = cls(source_url=source_url, format=format, public_id=public_id, filename=filename)
+        db.session.add(media)
+        return media
 
 
 class Country(db.Model):
@@ -740,15 +765,12 @@ class Event(db.Model):
             query = query.filter(Event.category_id == category_id)
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query.order_by(Event.start_datetime).limit(cursor.limit)
-
-        events = query.all()
+        events = query.order_by(Event.start_datetime).limit(cursor.limit).all()
 
         if events:
             cursor.set_before(events[0].start_datetime)
@@ -793,17 +815,12 @@ class Event(db.Model):
             query = query.filter(Event.category_id==category_id)
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        query = query.order_by(Event.created_at.asc())
-
-        if cursor and cursor.limit:
-            query = query.limit(cursor.limit)
-
-        events = query.all()
+        events = query.order_by(Event.created_at.asc()).limit(cursor.limit).all()
 
         if events:
             cursor.set_before(events[0].start_datetime)
@@ -1058,9 +1075,6 @@ class Event(db.Model):
                     func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) > func.round(
                         cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query
-
         reviews = query.order_by(EventReview.created_at.desc()).limit(cursor.limit).all()
 
         if reviews:
@@ -1219,18 +1233,20 @@ class EventMedia(db.Model):
     event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete='CASCADE', onupdate='CASCADE'))
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime)
+    public_id = db.Column(db.String)
 
-    def __init__(self, source_url=None, format=None, event=None, is_poster=False):
+    def __init__(self, source_url=None, format=None, event=None, is_poster=False, public_id=None):
         self.id = str(uuid.uuid4())
         self.filename = utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
         self.event = event
         self.is_poster = is_poster
+        self.public_id = public_id
 
     @classmethod
-    def create(cls, event=None, source_url=None, type=None, is_poster=False):
-        media = cls(source_url=source_url, format=format, event=event, is_poster=is_poster)
+    def create(cls, event=None, source_url=None, format=None, is_poster=False, public_id=None):
+        media = cls(source_url=source_url, format=format, event=event, is_poster=is_poster, public_id=public_id)
         db.session.add(media)
         return media
 
@@ -1249,8 +1265,12 @@ class EventMedia(db.Model):
         self.is_poster = is_poster
         db.session.commit()
 
+    def add_public_id(self, public_id):
+        self.public_id = public_id
+        db.session.commit()
+
     def delete(self):
-        db.session.query(EventMedia).filter(EventMedia.id==self.id).delete()
+        db.session.query(EventMedia).filter(EventMedia.id == self.id).delete()
         db.session.commit()
 
 
@@ -3373,7 +3393,7 @@ class Brand(db.Model):
     name = db.Column(db.String)
     description = db.Column(db.String)
     country = db.Column(db.String)
-    image = db.Column(db.String)
+    image = relationship('BrandMedia', uselist=False, back_populates="brand")
     created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
     creator = relationship(User)
@@ -3381,37 +3401,31 @@ class Brand(db.Model):
     category = relationship('BrandCategory')
     category_id = db.Column(db.String, db.ForeignKey('brand_categories.id', ondelete=CASCADE, onupdate=CASCADE))
     validations = relationship('BrandValidation')
+    founder = db.Column(db.String)
+    foundedDate = db.Column(db.String)
 
-    def __init__(self, name=None, description=None, country=None, creator=None, category=None):
+    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, foundedDate=None):
         self.id = str(uuid.uuid4())
-        self.image = 'https://source.unsplash.com/random/500*300'
-        self.created = datetime.now()
-
-        if name:
-            self.name = name
-
-        if description:
-            self.description = description
-
-        if country:
-            self.country = country
-
-        if creator:
-            self.creator = creator
-
-        if category:
-            self.category = category
+        self.created_at = datetime.now()
+        self.name = name
+        self.description = description
+        self.country = country
+        self.creator = creator
+        self.category = category
+        self.image = image
+        self.founder = founder
+        self.foundedDate = foundedDate
 
     @classmethod
-    def create(cls, name=None, description=None, country=None, creator=None, category=None):
-        brand = cls(name=name, description=description, country=country, creator=creator, category=category)
+    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, foundedDate=None):
+        brand = cls(name=name, description=description, country=country, creator=creator, category=category, image=image, founder=founder, foundedDate=foundedDate)
         db.session.add(brand)
         db.session.commit()
         return brand
 
     @classmethod
     def has_brand(cls, brand_id):
-        return db.session.query(db.session.query(Brand).filter(Brand.id==brand_id).exists()).scalar()
+        return db.session.query(db.session.query(Brand).filter(Brand.id == brand_id).exists()).scalar()
 
     @classmethod
     def get_brands(cls, category_id=None, searchterm=None, cursor=None):
@@ -3424,15 +3438,12 @@ class Brand(db.Model):
         query = query.options(joinedload(Brand.validations))
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Brand.created_at) > cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Brand.created_at) < cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query.order_by(Brand.created_at).limit(cursor.limit)
-
-        brands = query.all()
+        brands = query.order_by(Brand.created_at.desc()).limit(cursor.limit).all()
 
         if brands:
             cursor.set_before(brands[0].created_at)
@@ -3485,6 +3496,32 @@ class Brand(db.Model):
     def remove_validation_of_user(self, user):
         db.session.query(BrandValidation).filter(BrandValidation.validator_id==user.id).filter(BrandValidation.brand_id==self.id).delete()
         db.session.commit()
+
+    def update(self):
+        self.updated_at = datetime.now()
+        db.session.add(self)
+        db.session.commit()
+
+
+class BrandMedia(db.Model):
+    __tablename__ = 'brand_media'
+
+    id = db.Column(db.String, primary_key=True, default=uuid.uuid4)
+    filename = db.Column(db.String)
+    source_url = db.Column(db.String)
+    format = db.Column(db.String)
+    brand = relationship(Brand)
+    brand_id = db.Column(db.String, db.ForeignKey('brands.id', ondelete='CASCADE', onupdate='CASCADE'))
+    created_at = db.Column(db.DateTime)
+    public_id = db.Column(db.String)
+
+    def __init__(self, source_url=None, format=None, filename=None, public_id=None):
+        self.id = str(uuid.uuid4())
+        self.source_url = source_url
+        self.format = format
+        self.public_id = public_id
+        self.filename = filename
+        self.created_at = datetime.now()
 
 
 class BrandValidation(db.Model):
