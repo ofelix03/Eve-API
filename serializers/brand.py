@@ -1,5 +1,6 @@
 from marshmallow import Schema, fields
 from api.serializers.user import UserSummarySchema
+from api.serializers.image import MediaSchema, CreateMediaSchema
 
 
 class BrandCategorySchema(Schema):
@@ -12,19 +13,21 @@ class BrandSchema(Schema):
     id = fields.String(required=True, dump_only=True)
     name = fields.String(required=True)
     description = fields.String(required=True)
-    image = fields.String()
+    image = fields.Nested(MediaSchema, required=True)
     created_at = fields.DateTime(required=True)
     updated_at = fields.DateTime(required=True)
     creator = fields.Nested(UserSummarySchema)
     country = fields.String(required=True)
     category = fields.Nested(BrandCategorySchema)
     validators_count = fields.Function(lambda obj: len(obj.validations))
+    founder = fields.Function(lambda obj:  obj.founder.split(",") if obj.founder else None)
+    founded_date = fields.Date(required=True)
 
 
 class BrandSummarySchema(Schema):
     id = fields.String(required=True, dump_only=True)
     name = fields.String(required=True)
-    image = fields.String()
+    image = fields.Nested(MediaSchema, required=True)
     validators_count = fields.Function(lambda obj: len(obj.validations))
 
 
@@ -32,8 +35,11 @@ class CreateBrandSchema(Schema):
     name = fields.String(required=True)
     description = fields.String(required=True)
     category_id = fields.String(required=True)
-    image = fields.String()
+    image = fields.Nested(CreateMediaSchema, required=True)
+    creator = fields.Nested(UserSummarySchema)
     country = fields.String(required=True)
+    founder = fields.List(fields.String(), required=True)
+    founded_date = fields.String(required=True)
 
 
 class BrandValidationSchema(Schema):
