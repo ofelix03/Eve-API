@@ -4,7 +4,7 @@ from datetime import date, datetime
 from marshmallow.fields import Field
 import base64
 
-from api.exceptions.payments import InvalidCardExpirationDateFmt
+from api.repositories.exceptions import InvalidCardExpirationDateFmt
 
 ENCRYPTION_KEY = 'r4e7SulNhTkt0T_QWtB0tHQ6OJYUSHC93alsL7s8ALI'
 AUTH_USER_ID = '097d05c3-de53-4de4-9efa-ef71cd64cb11'
@@ -42,11 +42,15 @@ def check_password(password, hashed_password):
 
 def parse_card_expiration_date(mdate=''):
     # Converts date of format "YY/MM" to a datetime object
-    if '/' in mdate:
-        [y, m, d] = mdate.split('/') + [1]
-        y = str(date.today().year)[:2] + y
-        return date(int(y), int(m), int(d))
-    raise InvalidCardExpirationDateFmt()
+    try:
+        if '/' in mdate:
+            [y, m] = mdate.split('/')
+            y = str(date.today().year)[:2] + y
+            return date(int(y), int(m), int(1))
+        else:
+            raise InvalidCardExpirationDateFmt()
+    except Exception:
+        raise InvalidCardExpirationDateFmt()
 
 
 class CardExpirationDateField(Field):
