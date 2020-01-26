@@ -1,8 +1,9 @@
-
 class BaseException(Exception):
 
     def __init__(self, message=None):
         self.message = message
+
+
 
 class EventNotFound(BaseException):
     pass
@@ -10,6 +11,7 @@ class EventNotFound(BaseException):
 
 class EventCategoryNotFound(BaseException):
     pass
+
 
 class EventSpeakerNotFound(BaseException):
     pass
@@ -22,14 +24,18 @@ class BookmarkNotFound(BaseException):
 class BookmarkAlreadyExist(Exception):
     pass
 
+
 class CountryNotFound(Exception):
     pass
+
 
 class TicketDiscountNotFound(Exception):
     pass
 
+
 class TicketTypeDiscountTypeNotFound(Exception):
     pass
+
 
 class EventReviewNotFound(Exception):
     pass
@@ -61,7 +67,6 @@ class EventReviewCommentResponseNotFound(Exception):
 
 class EventSponsorNotFound(Exception):
     pass
-
 
 
 class BrandNotFound(Exception):
@@ -118,6 +123,13 @@ class NoPaymentDetailsFound(Exception):
     pass
 
 
+class PaymentAccountDoesNotExist(Exception):
+    pass
+
+
+class InvalidCardExpirationDateFmt(Exception):
+    pass
+
 # UserFollower
 class NoFollowersFound(Exception):
     pass
@@ -130,17 +142,22 @@ class AlreadyFollowingUser(Exception):
 class NotFollowingUser(Exception):
     pass
 
+
 class UnvailableTickets(Exception):
     pass
+
 
 class TicketReservationNotFound(Exception):
     pass
 
+
 class AlreadyHasTicketsForEvent(Exception):
     pass
 
+
 class SocialAccountNotFound(Exception):
     pass
+
 
 class JobNotFound(Exception):
     pass
