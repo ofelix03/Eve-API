@@ -159,8 +159,9 @@ class Job(db.Model):
 
 class User(db.Model):
     __tablename__ = 'users'
+
     id = db.Column(db.String, primary_key=True)
-    image = db.Column(db.String, default="https://source.unsplash.com/featured/?face,woman,man")
+    image = db.Column(db.String)
     name = db.Column(db.String)
     email = db.Column(db.String)
     password = db.Column(db.String)
@@ -168,7 +169,7 @@ class User(db.Model):
     country_id = db.Column(db.String, db.ForeignKey('countries.id'))
     gender = db.Column(db.String)
     phone_number = db.Column(db.String)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
     is_ghost = db.Column(db.Boolean, default=False)
     events = relationship('Event', backref='users')
@@ -181,6 +182,7 @@ class User(db.Model):
     def __init__(self, image=None, name=None, email=None, password=None, country=None, country_code=None, gender=None, phone_number=None, is_ghost=None):
 
         self.id = str(uuid.uuid4())
+        self.created_at= datetime.now()
 
         if image:
             self.image = image
@@ -447,6 +449,8 @@ class User(db.Model):
         ).filter(User.id==user_id).first()
 
     def update(self):
+        self.updated_at = datetime.now()
+        db.session.add(self)
         db.session.commit()
 
     def has_followers(self):
@@ -498,6 +502,15 @@ class User(db.Model):
         if self.has_card_payment():
             raise payment_exceptions.UserAlreadyHasPaymentSetup()
         return UserPaymentDetails.create_card_payment(self, card_payment_info, is_default_payment)
+
+    def has_payment_account(self, account_id):
+        return UserPaymentDetails.has_payment_account(account_id)
+
+    def remove_payment_account(self, account_id):
+        print("###1")
+        if not self.has_payment_account(account_id):
+            raise exceptions.PaymentAccountDoesNotExist()
+        UserPaymentDetails.remove_payment_account(account_id)
 
 
 class UserLoginSession(db.Model):
@@ -3400,11 +3413,12 @@ class Brand(db.Model):
     creator_id = db.Column(db.String, db.ForeignKey('users.id'))
     category = relationship('BrandCategory')
     category_id = db.Column(db.String, db.ForeignKey('brand_categories.id', ondelete=CASCADE, onupdate=CASCADE))
-    validations = relationship('BrandValidation')
+    endorsements = relationship('BrandValidation')
     founder = db.Column(db.String)
-    foundedDate = db.Column(db.String)
+    founded_date = db.Column(db.String)
+    website_link = db.Column(db.String)
 
-    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, foundedDate=None):
+    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, founded_date=None, website_link=None):
         self.id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.name = name
@@ -3414,11 +3428,12 @@ class Brand(db.Model):
         self.category = category
         self.image = image
         self.founder = founder
-        self.foundedDate = foundedDate
+        self.founded_date = founded_date
+        self.website_link = website_link
 
     @classmethod
-    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, foundedDate=None):
-        brand = cls(name=name, description=description, country=country, creator=creator, category=category, image=image, founder=founder, foundedDate=foundedDate)
+    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, founded_date=None, website_link=None):
+        brand = cls(name=name, description=description, country=country, creator=creator, category=category, image=image, founder=founder, founded_date=founded_date, website_link=website_link)
         db.session.add(brand)
         db.session.commit()
         return brand
@@ -3435,7 +3450,7 @@ class Brand(db.Model):
             query = query.filter(Brand.name.ilike("%" + searchterm + "%"))
         if category_id:
             query = query.filter(Brand.category_id == category_id)
-        query = query.options(joinedload(Brand.validations))
+        query = query.options(joinedload(Brand.endorsements))
 
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
@@ -3462,12 +3477,16 @@ class Brand(db.Model):
             query = query.filter(Brand.name.ilike("%" + searchterm + "%"))
         if category_id:
             query = query.filter(Brand.category_id == category_id)
-        query = query.options(joinedload(Brand.validations))
+        query = query.options(joinedload(Brand.endorsements))
         return query.count()
 
-    @staticmethod
-    def get_brand(brand_id):
-        return db.session.query(Brand).filter(Brand.id==brand_id).first()
+    @classmethod
+    def get_brand(cls, brand_id):
+        if not cls.has_brand(brand_id):
+            raise exceptions.BrandNotFound()
+        return db.session.query(Brand).options(
+                joinedload(Brand.endorsements)
+        ).filter(Brand.id == brand_id).first()
 
     def is_validated_by_user(self, user):
         return db.session.query(
@@ -3484,13 +3503,13 @@ class Brand(db.Model):
         db.session.query(Brand).filter(Brand.id==brand_id).delete()
         db.session.commit()
 
-    def get_brand_validations(self):
+    def get_brand_endorsements(self):
         return db.session.query(BrandValidation).filter(BrandValidation.brand_id==self.id).all()
 
     def add_validation(self, validation):
         if self.is_validated_by_user(validation.validator):
             raise exceptions.BrandAlreadyValidated()
-        self.validations.append(validation)
+        self.endorsements.append(validation)
         db.session.commit()
 
     def remove_validation_of_user(self, user):
@@ -3557,7 +3576,6 @@ class UserFollower(db.Model):
         self.user = user
         self.follower_id = follower_id
         self.follower = follower
-
 
 
 class UserPaymentDetails(db.Model):
@@ -3657,7 +3675,17 @@ class UserPaymentDetails(db.Model):
 
     @classmethod
     def get_mobile_payment(cls, user):
-        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id==user.id).filter(UserPaymentDetails.payment_type==PaymentTypes.MOBILE_MONEY).first()
+        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).filter(UserPaymentDetails.payment_type==PaymentTypes.MOBILE_MONEY).first()
+
+    @classmethod
+    def has_payment_account(cls, account_id):
+        return db.session.query(db.session.query(UserPaymentDetails).filter(UserPaymentDetails.id == account_id).exists()).scalar()
+
+    @classmethod
+    def remove_payment_account(cls, account_id):
+        db.session.query(UserPaymentDetails).filter(UserPaymentDetails.id == account_id).delete()
+        db.session.commit()
+        print("removePayment##")
 
 
 class Notifications(Enum):

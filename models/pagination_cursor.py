@@ -17,7 +17,6 @@ class PaginationCursor(object):
         self.limit = int(cursor_limit)
 
     def set_after(self, cursor_after):
-        print("cursor_after##", cursor_after)
         try:
             if isinstance(cursor_after, datetime):
                 cursor_after = base64.b64encode(str(cursor_after.timestamp()).encode())
