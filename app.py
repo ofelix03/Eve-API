@@ -22,12 +22,17 @@ from api import utils
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 
-app = Flask(__name__)
-app.config.from_object(db_config)
-app.config['UPLOAD_FOLDER'] = utils.MEDIA_DIR
-db.init_app(app)
-cors = CORS(app, resources={r"/*": {"origins": "*"}})
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(db_config)
+    db.init_app(app)
+    return app
 
+
+app = create_app()
+
+cors = CORS(app, resources={r"/*": {"origins": "*"}})
+app.config['UPLOAD_FOLDER'] = utils.MEDIA_DIR
 
 ImagesView.register(app, route_base='images')
 EventCategoryView.register(app, route_base='event-categories')
