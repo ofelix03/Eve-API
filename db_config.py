@@ -6,6 +6,6 @@
 # Session = scoped_session(sessionmaker(bind=engine, autocommit=False, autoflush=False))
 # session = Session()
 
-SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:123@localhost:5432/Eve'
+SQLALCHEMY_DATABASE_URI = 'postgresql://postgres@localhost:5432/Eve2'
 SQLALCHEMY_ECHO = True
 SQLALCHEMY_TRACK_MODIFICATIONS = False
