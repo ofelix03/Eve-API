@@ -40,6 +40,20 @@ class BrandView(AuthBaseView):
                 "code": "BRAND_CATEGORY_NOT_FOUND"
             }, 400)
 
+    def get(self, brand_id):
+        try:
+            brand = Brand.get_brand(brand_id)
+            print("onebrand##", brand)
+            return response({
+                'ok': True,
+                'brand': brand_schema.dump(brand)
+            })
+        except exceptions.BrandNotFound:
+            return response({
+                'ok': False,
+                'code': "BRAND_NOT_FOUND"
+            }, 400)
+
     def post(self):
         data = request.get_json()
         auth_user = Authenticator.get_instance().get_auth_user()
@@ -56,8 +70,10 @@ class BrandView(AuthBaseView):
             founder = ", ".join(data['founder'])
             founded_date = data['founded_date']
             category = BrandCategory.get_category(category_id)
+            website_link = data['website']
             brand = Brand.create(name=name, description=description, country=country, creator=auth_user,
-                                 category=category, image=image, founder=founder, foundedDate=founded_date)
+                                 category=category, image=image, founder=founder, founded_date=founded_date,
+                                 website_link=website_link)
             return response(brand_schema.dump(brand))
         except ValidationError as e:
             return response({
@@ -97,10 +113,15 @@ class BrandView(AuthBaseView):
                 brand.founder = ", ".join(data['founder'])
 
             if 'founded_date' in data:
-                brand.foundedDate = data['founded_date']
+                brand.founded_date = data['founded_date']
+
+            if 'website' in data:
+                brand.website_link = data['website']
 
             if 'image' in data:
-                brand.image = data['image']
+                image = data['image']
+                brand.image = BrandMedia(source_url=image['source_url'], format=image['format'], public_id=image['public_id'],
+                                   filename=image['filename'])
 
             brand.update()
             return response(brand_schema.dump(brand))
@@ -108,6 +129,11 @@ class BrandView(AuthBaseView):
             return response({
                 "ok": False,
                 "code": "BRAND_NOT_FOUND"
+            }, 400)
+        except exceptions.BrandCategoryNotFound:
+            return response({
+                "ok": False,
+                "code": "BRAND_CATEGORY_NOT_FOUND"
             }, 400)
 
     def delete(self, brand_id):
@@ -147,13 +173,13 @@ class BrandView(AuthBaseView):
         })
 
     @route('<string:brand_id>/validations', methods=['GET'])
-    def get_brand_validations(self, brand_id):
+    def get_brand_endorsements(self, brand_id):
         try:
             brand = Brand.get_brand(brand_id)
-            brand_validations = brand.get_brand_validations(brand_id)
+            brand_endorsements = brand.get_brand_endorsements(brand_id)
             return response({
                 'ok': True,
-                'brand_validations': brand_validation_schema.dump(brand_validations, many=True)
+                'brand_endorsements': brand_validation_schema.dump(brand_endorsements, many=True)
             })
         except exceptions.BrandNotFound:
             return response({
@@ -161,7 +187,7 @@ class BrandView(AuthBaseView):
                 "code": "BRAND_NOT_FOUND"
             }, 400)
 
-    @route('<string:brand_id>/validations', methods=['POST'])
+    @route('<string:brand_id>/endorsements', methods=['POST'])
     def create_brand_validation(self, brand_id):
         try:
             auth_user = Authenticator.get_instance().get_auth_user()
