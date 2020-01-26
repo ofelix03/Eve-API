@@ -83,7 +83,7 @@ class CardPaymentInfoSchema(Schema):
 class MobilePaymentInfoSchema(Schema):
     mobile_network = fields.String(required=True)
     mobile_number = fields.String(required=True)
-    is_default_payment = fields.Boolean(required=True)
+    is_default_payment = fields.Boolean()
     payment_type = fields.String()
 
 

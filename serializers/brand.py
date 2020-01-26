@@ -34,9 +34,10 @@ class BrandSchema(Schema):
     country = fields.String(required=True)
     category = fields.Nested(BrandCategorySchema)
     endorsement_count = fields.Function(lambda obj: len(obj.endorsements))
-    endorsements = fields.Nested(BrandValidationSchema, many=True, )
+    endorsements = fields.Nested(BrandValidationSchema, many=True)
     founder = fields.Function(lambda obj:  obj.founder.split(",") if obj.founder else None)
-    founded_date = fields.Date(required=True)
+    founded_date = fields.String(required=True)
+    website_link = fields.String(required=True)
 
 
 class CreateBrandSchema(Schema):
@@ -48,4 +49,5 @@ class CreateBrandSchema(Schema):
     country = fields.String(required=True)
     founder = fields.List(fields.String(), required=True)
     founded_date = fields.String(required=True)
+    website = fields.String(required=True, allow_none=True)
 
