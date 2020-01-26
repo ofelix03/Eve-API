@@ -43,12 +43,3 @@ MeView.register(app, route_base='me')
 CountryView.register(app, route_base='countries')
 GeneralView.register(app, route_base='general')
 PlacesAutocompleteView.register(app, route_base='places_autocomplete')
-
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
-    # app.run(debug=True, use_debugger=False, use_reloader=False, passthrough_errors=True)
-
-#
-# @app.teardown_appcontext
-# def cleanup(resp_or_exc):
-#     db.session.remove()
