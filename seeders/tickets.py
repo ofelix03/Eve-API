@@ -1,11 +1,13 @@
 import random
 import factory
 from api.models import event as model
-from api.db_config import Session
+# from api.db_config import Session
+from api.models.event import db
 
 
-session = Session()
+# session = Session()
 
+session = db.session
 
 events = session.query(model.Event).all()
 users = session.query(model.User).all()

@@ -3,11 +3,18 @@ import random
 import factory
 from factory.faker import Faker
 from api.models import event as model
-from api.db_config import Session
+# from api.models.event import db
+
+# from api.db_config import Session
 import uuid
 
 
-session = Session()
+# db = SQL
+
+
+# session = Session()
+
+# session = db.session
 
 EVENT_CATEGORIES = ['Photography', 'Technology', 'Art & Music', 'Movies', 'Education', 'Politics', 'Agriculture', 'Startup', 'Business']
 IMAGE_URL = ['https://placeimg.com/500/300/people', 'https://source.unsplash.com/random/500*300?event']
@@ -56,6 +63,7 @@ class JobFactory(factory.alchemy.SQLAlchemyModelFactory):
 jobs = JobFactory.build_batch(30)
 session.add_all(jobs)
 session.commit()
+
 
 class EventContactInfoFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:
@@ -191,9 +199,10 @@ def build_relational_data(event):
 
 
 def seed():
-    events = EventFactory.build_batch(100)
-    events = map(build_relational_data, events)
-    session.add_all(events)
+    # events = EventFactory.build_batch(100)
+    # events = map(build_relational_data, events)
+    users = UserFactory.build_batch(5)
+    session.add_all(users)
     session.commit()
 
 
