@@ -6,7 +6,6 @@ from api.auth.authenticator import Authenticator, data_encryptor
 from api.models.event import User, UserLoginSession, Country, Notification
 from api.models.domain.user_payment_info import CardPaymentInfo, MobilePaymentInfo, PaymentTypes
 from api import serializers
-from api import exceptions
 
 from api import utils
 
@@ -22,17 +21,17 @@ class UserView(AuthBaseView):
 
     @route('/me/update-profile', methods=['PUT'])
     def update_user_profile(self):
-        print("updating user")
         auth_user = Authenticator.get_instance().get_auth_user()
 
         data = request.get_json()
         profile = User.get_user(auth_user.id)
+        print("updating user", profile)
 
         if 'name' in data and data['name'] != profile.name:
             auth_user.name = data['name']
 
         if 'email' in data and data['email'] != profile.email:
-            profile.email = data['name']
+            profile.email = data['email']
 
         if 'phone_number' in data and data['phone_number'] != profile.phone_number:
             profile.phone_number = data['phone_number']
@@ -46,8 +45,14 @@ class UserView(AuthBaseView):
                     }
                 }, 400)
             profile.country = Country.get_country(country_id)
-        profile.update()
 
+        if 'country_code' in data:
+            pass
+
+        if 'image' in data:
+            profile.image = data['image']
+
+        profile.update()
         return response(serializers.user_schema.dump(profile))
 
     def delete(self, user_id=None):
@@ -456,8 +461,23 @@ class UserView(AuthBaseView):
                 'code': 'REQUEST_VALIDATION_ERROR',
                 'message': e.messages
             }, 400)
-        except exceptions.payments.InvalidCardExpirationDateFmt:
+        except exceptions.InvalidCardExpirationDateFmt:
             return response({
                 'ok': False,
-                'code': 'INVALID_CARD_EXPIRATON_DATE_FORMAT'
+                'code': 'INVALID_CARD_EXPIRATON_DATE_FORMAT',
+                'message': 'Invalid card expiration date format. Require a format of [YY/MM]'
+            }, 400)
+
+    @route('/me/payment-accounts/<string:account_id>', methods=['DELETE'])
+    def remove_payment_account(self, account_id):
+        try:
+            auth_user = Authenticator.get_instance().get_auth_user()
+            auth_user.remove_payment_account(account_id)
+            return response({
+                'ok': True,
+            })
+        except exceptions.PaymentAccountDoesNotExist:
+            return response({
+                'ok': False,
+                'code': "PAYMENT_ACCOUNT_NOT_FOUND"
             }, 400)

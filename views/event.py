@@ -1805,8 +1805,10 @@ class EventView(AuthBaseView):
                     file_to_upload = request.files[key]
                     media_file = models.EventMedia.create()
                     resp = cloudinary_upload(file_to_upload, public_id=media_file.filename)
+                    print('resp##', resp)
                     media_file.add_format(resp['format'])
                     media_file.add_source_url(resp['url'])
+                    media_file.add_public_id(resp['public_id'])
                     event.media.append(media_file)
                     uploaded_media.append(media_file)
                 db.session.commit()
@@ -1824,11 +1826,12 @@ class EventView(AuthBaseView):
 
     @route('/<string:event_id>/media/<string:media_id>', methods=['DELETE'])
     def delete_media(self, event_id, media_id):
+
         try:
             event = Event.get_event_only(event_id)
             file = event.get_media_file(media_id)
             file.delete()
-            cloudinary_api.delete_resources([file.filename])
+            cloudinary_api.delete_resources([file.public_id])
             return response(None)
         except exceptions.EventNotFound:
             return response({
