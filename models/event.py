@@ -1151,19 +1151,21 @@ class Event(db.Model):
             pass
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
+                                 < func.round( cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
+                                 > func.round(cursor.get_before_as_float(), 3))
 
         if cursor and cursor.limit:
-            query = query.order_by(Event.start_datetime).limit(cursor.limit)
+            query = query.order_by(Event.created_at.desc()).limit(cursor.limit)
 
         events = query.all()
 
         if events:
-            cursor.set_before(events[0].start_datetime)
-            cursor.set_after(events[-1].start_datetime)
+            cursor.set_before(events[0].created_at)
+            cursor.set_after(events[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
