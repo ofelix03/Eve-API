@@ -22,7 +22,6 @@ from flask_sqlalchemy import SQLAlchemy
 
 CASCADE = 'CASCADE'
 
-
 db = SQLAlchemy()
 
 
@@ -78,12 +77,12 @@ class Country(db.Model):
 
     @classmethod
     def has_country(cls, country_id):
-        count = db.session.query(Country).filter(Country.id==country_id).count()
+        count = db.session.query(Country).filter(Country.id == country_id).count()
         return bool(count)
 
     @classmethod
     def has_country_by_name(cls, name):
-        return db.session.query(db.session.query(Country).filter(Country.name==name).exists()).scalar()
+        return db.session.query(db.session.query(Country).filter(Country.name == name).exists()).scalar()
 
     @classmethod
     def get_countries(cls):
@@ -92,11 +91,11 @@ class Country(db.Model):
 
     @classmethod
     def get_country(cls, country_id):
-        return db.session.query(Country).filter(Country.id==country_id).one()
+        return db.session.query(Country).filter(Country.id == country_id).one()
 
     @classmethod
     def get_country_by_code(cls, code):
-        return db.session.query(Country).filter(Country.code==code).first()
+        return db.session.query(Country).filter(Country.code == code).first()
 
     def update(self):
         self.db.session.commit()
@@ -105,7 +104,7 @@ class Country(db.Model):
     def remove_country(cls, country_id):
         if not cls.has_country(country_id):
             raise exceptions.CountryNotFound()
-        db.session.query(Country).filter(Country.id==country_id).delete()
+        db.session.query(Country).filter(Country.id == country_id).delete()
 
     @classmethod
     def find_countries_by_searchterm(cls, searchterm):
@@ -136,13 +135,13 @@ class Job(db.Model):
 
     @classmethod
     def has_job(cls, job_id):
-        return db.session.query(db.session.query(Job).filter(Job.id==job_id).exists()).scalar()
+        return db.session.query(db.session.query(Job).filter(Job.id == job_id).exists()).scalar()
 
     @classmethod
     def get_job(cls, job_id):
         if not cls.has_job(job_id):
             raise exceptions.JobNotFound()
-        return db.session.query(Job).filter(Job.id==job_id).first()
+        return db.session.query(Job).filter(Job.id == job_id).first()
 
     @classmethod
     def get_jobs(cls):
@@ -179,10 +178,11 @@ class User(db.Model):
     login_history = relationship('UserLoginHistory', backref='users')
     login_session = relationship('UserLoginSession', backref='users')
 
-    def __init__(self, image=None, name=None, email=None, password=None, country=None, country_code=None, gender=None, phone_number=None, is_ghost=None):
+    def __init__(self, image=None, name=None, email=None, password=None, country=None, country_code=None, gender=None,
+                 phone_number=None, is_ghost=None):
 
         self.id = str(uuid.uuid4())
-        self.created_at= datetime.now()
+        self.created_at = datetime.now()
 
         if image:
             self.image = image
@@ -212,8 +212,10 @@ class User(db.Model):
             self.is_ghost = is_ghost
 
     @classmethod
-    def create(cls, name=None, image=None, email=None, password=None, country=None, country_code=None, gender=None, phone_number=None, is_ghost=False):
-        user = cls(name=name, image=image, email=email, password=password, country=country, country_code=country_code, gender=gender, phone_number=phone_number, is_ghost=is_ghost)
+    def create(cls, name=None, image=None, email=None, password=None, country=None, country_code=None, gender=None,
+               phone_number=None, is_ghost=False):
+        user = cls(name=name, image=image, email=email, password=password, country=country, country_code=country_code,
+                   gender=gender, phone_number=phone_number, is_ghost=is_ghost)
         db.session.add(user)
         db.session.commit()
         return user
@@ -227,7 +229,7 @@ class User(db.Model):
 
     @staticmethod
     def has_user(user_id):
-        return db.session.query(db.session.query(User).filter(User.id==user_id).exists()).scalar()
+        return db.session.query(db.session.query(User).filter(User.id == user_id).exists()).scalar()
 
     def change_password(self, new_password, new_password_confirmation):
         if new_password != new_password_confirmation:
@@ -242,11 +244,11 @@ class User(db.Model):
     def get_user(cls, user_id):
         if not cls.has_user(user_id):
             raise exceptions.user.UserNotFound()
-        return db.session.query(User).filter(User.id==user_id).first()
+        return db.session.query(User).filter(User.id == user_id).first()
 
     @staticmethod
     def get_users():
-        return db.session.query(User).filter(User.is_ghost==False).all()
+        return db.session.query(User).filter(User.is_ghost == False).all()
 
     @classmethod
     def get_user_by_email(cls, email):
@@ -256,14 +258,16 @@ class User(db.Model):
 
     @staticmethod
     def has_email(email):
-        return db.session.query(db.session.query(User).filter(User.email==email).exists()).scalar()
+        return db.session.query(db.session.query(User).filter(User.email == email).exists()).scalar()
 
     @staticmethod
     def has_email_n_password(email, password):
-        return db.session.query(db.session.query(User).filter(User.email==email).filter(User.password==password).exists()).scalar()
+        return db.session.query(
+            db.session.query(User).filter(User.email == email).filter(User.password == password).exists()).scalar()
 
     def has_login_session(self):
-        return db.session.query(db.session.query(UserLoginSession).filter(UserLoginSession.user_id == self.id).exists()).scalar()
+        return db.session.query(
+            db.session.query(UserLoginSession).filter(UserLoginSession.user_id == self.id).exists()).scalar()
 
     def get_login_session(self):
         return db.session.query(UserLoginSession).filter(UserLoginSession.user_id == self.id).first()
@@ -276,14 +280,14 @@ class User(db.Model):
         if not user:
             return False
         return db.session.query(db.session.query(UserFollower.id)
-                                .filter(UserFollower.user_id==user.id)
-                                .filter(UserFollower.follower_id==self.id).exists()
+                                .filter(UserFollower.user_id == user.id)
+                                .filter(UserFollower.follower_id == self.id).exists()
                                 ).scalar()
 
     def is_following_me(self, user):
-        return db.session.query(is_following_me = db.session.query(UserFollower.id)
-                                .filter(UserFollower.user_id==self.id)
-                                .filter(UserFollower.follower_id==user.id).exists()
+        return db.session.query(is_following_me=db.session.query(UserFollower.id)
+                                .filter(UserFollower.user_id == self.id)
+                                .filter(UserFollower.follower_id == user.id).exists()
                                 ).scalar()
 
     def is_me(self, user):
@@ -291,8 +295,8 @@ class User(db.Model):
 
     def remove_follower(self, user):
         db.session.query(UserFollower) \
-            .filter(UserFollower.user_id==self.id) \
-            .filter(UserFollower.follower_id==user.id) \
+            .filter(UserFollower.user_id == self.id) \
+            .filter(UserFollower.follower_id == user.id) \
             .delete()
         db.session.commit()
 
@@ -306,26 +310,26 @@ class User(db.Model):
         if not self.has_follower():
             raise exceptions.NotFollowingUser()
         db.session.query(UserFollower) \
-            .filter(UserFollower.follower_id==user.id) \
-            .filter(UserFollower.user_id==self.id) \
+            .filter(UserFollower.follower_id == user.id) \
+            .filter(UserFollower.user_id == self.id) \
             .delete()
         db.session.commit()
 
     def has_follower(self, user):
         return db.session.query(db.session.query(UserFollower)
-                                .filter(UserFollower.follower_id==user.id)
-                                .filter(UserFollower.user_id==self.id).exists()
+                                .filter(UserFollower.follower_id == user.id)
+                                .filter(UserFollower.user_id == self.id).exists()
                                 ).scalar()
 
     def has_purchased_tickets_for_event(self, event):
-        return db.session.query(db.session.query(EventTicket).filter(EventTicket.owner_id==self.id)
-                                .filter(EventTicket.event_id==event.id)
+        return db.session.query(db.session.query(EventTicket).filter(EventTicket.owner_id == self.id)
+                                .filter(EventTicket.event_id == event.id)
                                 .exists()).scalar()
 
     def has_gifted_tickets_for_event(self, event):
         return db.session.query(db.session.query(EventTicketTypeAssignment)
-                                .filter(EventTicketTypeAssignment.event_id==event.id)
-                                .filter(EventTicketTypeAssignment.assigned_to_user_id==self.id)
+                                .filter(EventTicketTypeAssignment.event_id == event.id)
+                                .filter(EventTicketTypeAssignment.assigned_to_user_id == self.id)
                                 .exists()).scalar()
 
     def has_tickets_for_event(self, event):
@@ -334,8 +338,9 @@ class User(db.Model):
     def get_attending_events(self, cursor=None):
         event_ids_query = db.session.query(EventTicket.event_id.label("event_id")) \
             .distinct(EventTicket.event_id) \
-            .filter(or_(EventTicket.owner_id == self.id, and_(EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id),
-                                                              EventTicket.assignment.any(EventTicketTypeAssignment.assigned_to_user_id == self.id))))
+            .filter(or_(EventTicket.owner_id == self.id,
+                        and_(EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id),
+                             EventTicket.assignment.any(EventTicketTypeAssignment.assigned_to_user_id == self.id))))
 
         query = db.session.query(Event).filter(Event.id.in_(event_ids_query))
 
@@ -369,10 +374,10 @@ class User(db.Model):
 
     def get_created_events(self, cursor):
         query = db.session.query(Event) \
-            .filter(Event.user_id==self.id)
+            .filter(Event.user_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime)  > cursor.get_after_as_float())
+            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_after_as_float())
 
         if cursor and cursor.before:
             query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_before_as_float())
@@ -393,12 +398,12 @@ class User(db.Model):
 
     def get_created_events_count(self):
         return db.session.query(Event) \
-            .filter(Event.user_id==self.id) \
+            .filter(Event.user_id == self.id) \
             .count()
 
     def get_bookmarked_events(self, cursor):
         query = db.session.query(EventTicket.event_id.label("event_id")) \
-            .filter(EventBookmark.user_id==self.id)
+            .filter(EventBookmark.user_id == self.id)
 
         query = db.session.query(Event).filter(Event.id.in_(query))
 
@@ -424,7 +429,7 @@ class User(db.Model):
 
     def get_bookmarked_events_count(self):
         return db.session.query(EventBookmark) \
-            .filter(EventBookmark.user_id==self.id) \
+            .filter(EventBookmark.user_id == self.id) \
             .count()
 
     @classmethod
@@ -433,7 +438,7 @@ class User(db.Model):
             return []
         searchterm = '%' + searchterm + '%'
         users = db.session.query(User) \
-            .filter(User.is_ghost==False) \
+            .filter(User.is_ghost == False) \
             .filter(or_(User.name.ilike(searchterm), User.email.ilike(searchterm))) \
             .all()
         return users
@@ -444,9 +449,9 @@ class User(db.Model):
             raise exceptions.user.UserNotFound()
 
         return db.session.query(User).options(
-                joinedload(User.events),
-                joinedload(User.bookmarks)
-        ).filter(User.id==user_id).first()
+            joinedload(User.events),
+            joinedload(User.bookmarks)
+        ).filter(User.id == user_id).first()
 
     def update(self):
         self.updated_at = datetime.now()
@@ -458,13 +463,13 @@ class User(db.Model):
 
     def get_followers(self):
         followers = db.session.query(User).filter(User.id.in_(
-                self.db.session.query(UserFollower.follower_id).filter(UserFollower.user_id == self.id).subquery()
+            self.db.session.query(UserFollower.follower_id).filter(UserFollower.user_id == self.id).subquery()
         )).all()
         return followers
 
     def get_followings(self):
         followings = db.session.query(User).filter(User.id.in_(
-                self.db.session.query(UserFollower.user_id).filter(UserFollower.follower_id == self.id).subquery()
+            self.db.session.query(UserFollower.user_id).filter(UserFollower.follower_id == self.id).subquery()
         )).all()
 
         return followings
@@ -476,7 +481,8 @@ class User(db.Model):
         return self.db.session.query(UserFollower.follower_id).filter(UserFollower.user_id == self.id).count()
 
     def has_payment_details(self):
-        return db.session.query(self.db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == self.id).exists()).scalar()
+        return db.session.query(
+            self.db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == self.id).exists()).scalar()
 
     def has_card_payment(self):
         return UserPaymentDetails.has_card_payment(self)
@@ -595,7 +601,8 @@ class Event(db.Model):
     sponsors = relationship('EventSponsor', backref='events')
     is_published = db.Column(db.Boolean, index=True)
 
-    def __init__(self, name=None, description=None, venue=None, start_datetime=None, end_datetime=None, cover_image=None, is_published=False):
+    def __init__(self, name=None, description=None, venue=None, start_datetime=None, end_datetime=None,
+                 cover_image=None, is_published=False):
         self.id = str(uuid.uuid4())
         self.name = name
         self.description = description
@@ -607,7 +614,7 @@ class Event(db.Model):
 
     @classmethod
     def has_event(cls, event_id):
-        return db.session.query(db.session.query(Event).filter(Event.id==event_id).exists()).scalar()
+        return db.session.query(db.session.query(Event).filter(Event.id == event_id).exists()).scalar()
 
     @staticmethod
     def add_event(event):
@@ -619,7 +626,7 @@ class Event(db.Model):
     def delete_event(cls, event_id):
         if not cls.has_event(event_id):
             raise exceptions.EventNotFound()
-        db.session.query(Event).filter(Event.id==event_id).delete()
+        db.session.query(Event).filter(Event.id == event_id).delete()
         db.session.commit()
 
     @classmethod
@@ -650,10 +657,10 @@ class Event(db.Model):
             ORDER BY created_at ASC LIMIT :limit
         """
         return text(query_text).bindparams(
-                event_id=self.id,
-                limit=cursor.limit,
-                cursor_after=cursor.get_after_as_float(),
-                cursor_before=cursor.get_before_as_float()
+            event_id=self.id,
+            limit=cursor.limit,
+            cursor_after=cursor.get_after_as_float(),
+            cursor_before=cursor.get_before_as_float()
         )
 
     def _attendees_view_query_created_at(self, cursor):
@@ -665,10 +672,10 @@ class Event(db.Model):
                ORDER BY created_at ASC LIMIT :limit
            """
         return text(query_text).bindparams(
-                event_id=self.id,
-                limit=cursor.limit,
-                cursor_after=cursor.get_after_as_float(),
-                cursor_before=cursor.get_before_as_float()
+            event_id=self.id,
+            limit=cursor.limit,
+            cursor_after=cursor.get_after_as_float(),
+            cursor_before=cursor.get_before_as_float()
         )
 
     def get_attendees(self, cursor=None):
@@ -677,7 +684,8 @@ class Event(db.Model):
         return attendees
 
     def get_total_attendees(self):
-        return db.session.query(User).filter(User.id.in_(self._attendees_view_query_user_id(cursor=PaginationCursor()))).count()
+        return db.session.query(User).filter(
+            User.id.in_(self._attendees_view_query_user_id(cursor=PaginationCursor()))).count()
 
     def is_bookmarked_by(self, user):
         if not user:
@@ -736,14 +744,14 @@ class Event(db.Model):
     @staticmethod
     def get_events(period=None, category_id=None, creator_id=None, cursor=None):
         query = db.session.query(Event).options(
-                joinedload(Event.recommendations),
-                joinedload(Event.organizers),
-                joinedload(Event.user),
-                joinedload(Event.category),
-                joinedload(Event.ticket_types),
-                joinedload(Event.contact_info),
-                joinedload(Event.speakers),
-                joinedload(Event.media),
+            joinedload(Event.recommendations),
+            joinedload(Event.organizers),
+            joinedload(Event.user),
+            joinedload(Event.category),
+            joinedload(Event.ticket_types),
+            joinedload(Event.contact_info),
+            joinedload(Event.speakers),
+            joinedload(Event.media),
         )
 
         if period and 'period' in period and 'value' in period:
@@ -778,16 +786,18 @@ class Event(db.Model):
             query = query.filter(Event.category_id == category_id)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
-        events = query.order_by(Event.start_datetime).limit(cursor.limit).all()
+        events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
         if events:
-            cursor.set_before(events[0].start_datetime)
-            cursor.set_after(events[-1].start_datetime)
+            cursor.set_before(events[0].created_at)
+            cursor.set_after(events[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
@@ -807,33 +817,32 @@ class Event(db.Model):
                 query = query.filter(func.DATE(Event.start_datetime) == period_value)
             elif period_type == EventPeriods.TOMORROW:
                 query = query.filter(func.DATE(Event.start_datetime) == period_value)
+                print('am here now--felix##')
             elif period_type == EventPeriods.THIS_WEEK:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
             elif period_type == EventPeriods.THIS_MONTH:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
             elif period_type == EventPeriods.NEXT_MONTH:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
             elif period_type == EventPeriods.THIS_YEAR:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
 
         if category_id:
-            query = query.filter(Event.category_id==category_id)
-
+            query = query.filter(Event.category_id == category_id)
+        
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3)
+                                 < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3)
+                                 > func.round(cursor.get_before_as_float(), 3))
 
-        events = query.order_by(Event.created_at.asc()).limit(cursor.limit).all()
+        events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
         if events:
             cursor.set_before(events[0].start_datetime)
@@ -846,16 +855,16 @@ class Event(db.Model):
     @staticmethod
     def get_event(event_id):
         return db.session.query(Event).options(
-                joinedload(Event.recommendations),
-                joinedload(Event.organizers),
-                joinedload(Event.user),
-                joinedload(Event.category),
-                joinedload(Event.ticket_types),
-                joinedload(Event.contact_info),
-                joinedload(Event.speakers),
-                joinedload(Event.media),
-                joinedload(Event.ticket_types)
-        ).filter(Event.id==event_id).first()
+            joinedload(Event.recommendations),
+            joinedload(Event.organizers),
+            joinedload(Event.user),
+            joinedload(Event.category),
+            joinedload(Event.ticket_types),
+            joinedload(Event.contact_info),
+            joinedload(Event.speakers),
+            joinedload(Event.media),
+            joinedload(Event.ticket_types)
+        ).filter(Event.id == event_id).first()
 
     def add_organizer(self, organizer):
         self.organizers += [organizer]
@@ -875,18 +884,19 @@ class Event(db.Model):
         db.session.commit()
 
     def has_organizer(self, user):
-        return db.session.query(db.session.query(EventOrganizer).filter(EventOrganizer.user_id==user.id).exists()).scalar()
+        return db.session.query(
+            db.session.query(EventOrganizer).filter(EventOrganizer.user_id == user.id).exists()).scalar()
 
     def clear_organizers(self):
-        db.session.query(EventOrganizer).filter(EventOrganizer.event_id==self.id).delete()
+        db.session.query(EventOrganizer).filter(EventOrganizer.event_id == self.id).delete()
         db.session.commit()
 
     def clear_sponsors(self):
-        db.session.query(EventSponsor).filter(EventSponsor.event_id==self.id).delete()
+        db.session.query(EventSponsor).filter(EventSponsor.event_id == self.id).delete()
         db.session.commit()
 
     def clear_contact_infos(self):
-        db.session.query(EventContactInfo).filter(EventContactInfo.event_id==self.id).delete()
+        db.session.query(EventContactInfo).filter(EventContactInfo.event_id == self.id).delete()
         db.session.commit()
 
     def clear_categories(self):
@@ -899,8 +909,8 @@ class Event(db.Model):
 
     def has_speaker(self, speaker_id):
         return db.session.query(db.session.query(EventSpeaker)
-                                .filter(EventSpeaker.event_id==self.id)
-                                .filter(EventSpeaker.id==speaker_id)
+                                .filter(EventSpeaker.event_id == self.id)
+                                .filter(EventSpeaker.id == speaker_id)
                                 .exists()
                                 ).scalar()
 
@@ -915,7 +925,7 @@ class Event(db.Model):
     def remove_speaker(self, speaker_id):
         if not self.has_speaker(speaker_id):
             raise exceptions.EventSpeakerNotFound()
-        db.session.query(EventSpeaker).filter(EventSpeaker.id==speaker_id).delete()
+        db.session.query(EventSpeaker).filter(EventSpeaker.id == speaker_id).delete()
         db.session.commit()
 
     def get_speaker(self, speaker_id):
@@ -924,32 +934,32 @@ class Event(db.Model):
 
         return db.session.query(EventSpeaker) \
             .options(joinedload(EventSpeaker.social_account), joinedload(EventSpeaker.profession)) \
-            .filter(EventSpeaker.id==speaker_id) \
+            .filter(EventSpeaker.id == speaker_id) \
             .first()
 
     def get_speakers(self):
-        return db.session.query(EventSpeaker).filter(EventSpeaker.event_id==self.id).all()
+        return db.session.query(EventSpeaker).filter(EventSpeaker.event_id == self.id).all()
 
     def get_ticket_type_discount(self, ticket_type_id, discount_id):
         return db.session.query(EventTicketDiscount). \
-            filter(EventTicketDiscount.id==discount_id). \
-            filter(EventTicketDiscount.ticket_type_id==ticket_type_id) \
+            filter(EventTicketDiscount.id == discount_id). \
+            filter(EventTicketDiscount.ticket_type_id == ticket_type_id) \
             .first()
 
     def get_ticket_type_discounts(self, ticket_type_id):
         if not EventTicketType.has_ticket_type(ticket_type_id):
             raise exceptions.TicketTypeNotFound()
-        return db.session.query(EventTicketDiscount).filter(EventTicketDiscount.ticket_type_id==ticket_type_id).all()
+        return db.session.query(EventTicketDiscount).filter(EventTicketDiscount.ticket_type_id == ticket_type_id).all()
 
     def remove_ticket_type_discount(self, ticket_type_id, discount_id):
         if not EventTicketType.has_ticket_type(ticket_type_id):
             raise exceptions.TicketTypeNotFound()
-        db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id==discount_id).delete()
+        db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id == discount_id).delete()
         db.session.commit()
 
     def get_event_recommendations(self):
         return db.session.query(EventRecommendation) \
-            .filter(EventRecommendation.event_id==self.id) \
+            .filter(EventRecommendation.event_id == self.id) \
             .all()
 
     def has_recommendation_for(self, recommended_by_id, search_term=None, recommended_to_id=None):
@@ -958,13 +968,14 @@ class Event(db.Model):
 
         if search_term:
             query = query.filter(
-                    or_(EventRecommendation.email == search_term, EventRecommendation.phone_number == search_term))
+                or_(EventRecommendation.email == search_term, EventRecommendation.phone_number == search_term))
         elif recommended_to_id:
             query = query.filter(EventRecommendation.recommended_to_id == recommended_to_id)
         else:
             raise Exception("A searchterm or recommend_to_id is required")
 
-        return db.session.query(query.filter(EventRecommendation.recommended_by_id == recommended_by_id).exists()).scalar()
+        return db.session.query(
+            query.filter(EventRecommendation.recommended_by_id == recommended_by_id).exists()).scalar()
 
     def add_sponsor(self, sponsor):
         self.sponsors += [sponsor]
@@ -974,20 +985,22 @@ class Event(db.Model):
         if not self.has_sponsor(sponsor_id):
             raise exceptions.EventSponsorNotFound()
 
-        db.session.query(EventSponsor).filter(EventSponsor.id==sponsor_id).filter(EventSponsor.event_id==event_id).delete()
+        db.session.query(EventSponsor).filter(EventSponsor.id == sponsor_id).filter(
+            EventSponsor.event_id == event_id).delete()
 
     def get_sponsors(self):
-        return db.session.query(EventSponsor).filter(EventSponsor.event_id==self.id).all()
+        return db.session.query(EventSponsor).filter(EventSponsor.event_id == self.id).all()
 
     def get_sponsor(self, sponsor_id):
         if not self.has_sponsor(sponsor_id):
             raise exceptions.EventSponsorNotFound()
 
-        return db.session.query(EventSponsor).filter(EventSponsor.event_id == self.id).filter(EventSponsor.id==sponsor_id).first()
+        return db.session.query(EventSponsor).filter(EventSponsor.event_id == self.id).filter(
+            EventSponsor.id == sponsor_id).first()
 
     def has_sponsor(self, sponsor_id=None):
         return db.session.query(db.session.query(EventSponsor).filter(EventSponsor.event_id == self.id).filter(
-                EventSponsor.id == sponsor_id).exists()).scalar()
+            EventSponsor.id == sponsor_id).exists()).scalar()
 
     def add_bookmark(self, event_id, bookmark):
         event = self.get_event(event_id)
@@ -1004,7 +1017,7 @@ class Event(db.Model):
         if not self.event_bookmarked_by_user(event_id, user_id):
             raise exceptions.BookmarkNotFound()
         db.session.query(EventBookmark).filter(EventBookmark.user_id == user_id).filter(
-                EventBookmark.event_id == event_id).delete()
+            EventBookmark.event_id == event_id).delete()
         db.session.commit()
 
     def event_bookmarked_by_user(self, event_id, user_id):
@@ -1012,17 +1025,17 @@ class Event(db.Model):
         if not event:
             raise exceptions.EventNotFound()
         count = db.session.query(EventBookmark).filter(EventBookmark.user_id == user_id).filter(
-                EventBookmark.event_id == event_id).count()
+            EventBookmark.event_id == event_id).count()
         return bool(count)
 
     def has_bookmark(self, bookmark_id):
         return db.session.query(db.session.query(EventBookmark)
-                                .filter(EventBookmark.id==bookmark_id)
-                                .filter(EventBookmark.event_id==self.id)
+                                .filter(EventBookmark.id == bookmark_id)
+                                .filter(EventBookmark.event_id == self.id)
                                 .exists()).scalar()
 
     def get_bookmarks(self):
-        return db.session.query(EventBookmark).filter(EventBookmark.event_id==self.id).all()
+        return db.session.query(EventBookmark).filter(EventBookmark.event_id == self.id).all()
 
     def add_review(self, review):
         self.reviews.append(review)
@@ -1037,13 +1050,14 @@ class Event(db.Model):
     def has_review(self, review_id):
         return db.session.query(db.session.query(EventReview) \
                                 .filter(EventReview.id == review_id) \
-                                .filter(EventReview.event_id==self.id) \
+                                .filter(EventReview.event_id == self.id) \
                                 .exists()).scalar()
 
     def delete_review(self, review_id):
         if not self.has_review(review_id):
             raise exceptions.EventReviewNotFound()
-        db.session.query(EventReview).filter(EventReview.id==review_id).filter(EventReview.event_id==self.id).delete()
+        db.session.query(EventReview).filter(EventReview.id == review_id).filter(
+            EventReview.event_id == self.id).delete()
         db.session.commit()
 
     def get_total_event_reviews(self):
@@ -1062,31 +1076,31 @@ class Event(db.Model):
             raise exceptions.EventReviewNotFound()
 
         return db.session.query(EventReview).options(
-                joinedload(EventReview.author),
-                joinedload(EventReview.media),
-                joinedload(EventReview.upvotes),
-                joinedload(EventReview.downvotes)
+            joinedload(EventReview.author),
+            joinedload(EventReview.media),
+            joinedload(EventReview.upvotes),
+            joinedload(EventReview.downvotes)
         ).filter(EventReview.id == review_id).first()
 
     def get_reviews(self, cursor):
         query = db.session.query(EventReview).options(
-                joinedload(EventReview.author),
-                joinedload(EventReview.media),
-                joinedload(EventReview.upvotes),
-                joinedload(EventReview.downvotes),
-                joinedload(EventReview.comments),
-                joinedload(EventReview.event),
+            joinedload(EventReview.author),
+            joinedload(EventReview.media),
+            joinedload(EventReview.upvotes),
+            joinedload(EventReview.downvotes),
+            joinedload(EventReview.comments),
+            joinedload(EventReview.event),
         ).filter(EventReview.event_id == self.id)
 
         if cursor and cursor.after:
             query = query.filter(
-                    func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) < func.round(
-                        cursor.get_after_as_float(), 3))
+                func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
             query = query.filter(
-                    func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) > func.round(
-                        cursor.get_before_as_float(), 3))
+                func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) > func.round(
+                    cursor.get_before_as_float(), 3))
 
         reviews = query.order_by(EventReview.created_at.desc()).limit(cursor.limit).all()
 
@@ -1193,14 +1207,15 @@ class Event(db.Model):
 
     def has_media_file(self, file_id):
         return db.session.query(db.session.query(EventMedia)
-                                .filter(EventMedia.id==file_id)
-                                .filter(EventMedia.event_id==self.id)
+                                .filter(EventMedia.id == file_id)
+                                .filter(EventMedia.event_id == self.id)
                                 .exists()).scalar()
 
     def get_media_file(self, file_id):
         if not self.has_media_file(file_id):
             raise exceptions.MediaNotFound()
-        return db.session.query(EventMedia).filter(EventMedia.id==file_id).filter(EventMedia.event_id==self.id).first()
+        return db.session.query(EventMedia).filter(EventMedia.id == file_id).filter(
+            EventMedia.event_id == self.id).first()
 
     def set_as_poster(self, file):
         file.poster = True
@@ -1215,7 +1230,8 @@ class Event(db.Model):
         db.session.commit()
 
     def get_poster(self):
-        image = db.session.query(EventMedia).filter(EventMedia.event_id==self.id).filter(EventMedia.poster == True).first()
+        image = db.session.query(EventMedia).filter(EventMedia.event_id == self.id).filter(
+            EventMedia.poster == True).first()
         return image.source_url if image else None
 
 
@@ -1303,7 +1319,8 @@ class EventSpeaker(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime)
 
-    def __init__(self, name=None, social_account_id=None, social_account=None, social_account_handle=None, profession_id=None, profession=None, event=None, event_id=None, image=None):
+    def __init__(self, name=None, social_account_id=None, social_account=None, social_account_handle=None,
+                 profession_id=None, profession=None, event=None, event_id=None, image=None):
         self.id = str(uuid.uuid4())
         self.name = name
         self.social_media_id = social_account_id
@@ -1329,7 +1346,7 @@ class EventSpeaker(db.Model):
 
     @staticmethod
     def get_speaker(speaker_id):
-        return db.session.query(EventSpeaker).filter(EventSpeaker.id==speaker_id).first()
+        return db.session.query(EventSpeaker).filter(EventSpeaker.id == speaker_id).first()
 
     def update(self, name=None, social_account_id=None, social_account=None, social_account_handle=None,
                profession_id=None, profession=None, event=None, event_id=None, image=None):
@@ -1348,8 +1365,8 @@ class EventContactInfo(db.Model):
     __tablename__ = 'event_contact_info'
 
     id = db.Column(db.String, primary_key=True, default=uuid.uuid4)
-    type = db.Column(db.String) # type: email | mobile
-    info = db.Column(db.String) # info: 0242310913 | ofelix03@gmail.com
+    type = db.Column(db.String)  # type: email | mobile
+    info = db.Column(db.String)  # info: 0242310913 | ofelix03@gmail.com
     event = relationship(Event)
     event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete='CASCADE', onupdate='CASCADE'))
     created_at = db.Column(db.DateTime, default=datetime.now())
@@ -1385,11 +1402,12 @@ class EventCategory(db.Model):
     def get_category(cls, category_id):
         if not cls.has_category(category_id):
             raise exceptions.EventCategoryNotFound()
-        return db.session.query(EventCategory).filter(EventCategory.id==category_id).first()
+        return db.session.query(EventCategory).filter(EventCategory.id == category_id).first()
 
     @staticmethod
     def has_category(category_id):
-        return db.session.query(db.session.query(EventCategory).filter(EventCategory.id==category_id).exists()).scalar()
+        return db.session.query(
+            db.session.query(EventCategory).filter(EventCategory.id == category_id).exists()).scalar()
 
     def update(self):
         db.session.commit()
@@ -1398,7 +1416,7 @@ class EventCategory(db.Model):
     def delete_category(cls, category_id):
         if not cls.has_category(category_id):
             raise exceptions.EventCategoryNotFound()
-        db.session.query(EventCategory).filter(EventCategory.id==category_id).delete()
+        db.session.query(EventCategory).filter(EventCategory.id == category_id).delete()
         db.session.commit()
 
     @classmethod
@@ -1432,8 +1450,8 @@ class EventBookmark(db.Model):
     @staticmethod
     def user_already_bookmarked_event(event, user):
         return db.session.query(db.session.query(EventBookmark)
-                                .filter(EventBookmark.event_id==event.id)
-                                .filter(EventBookmark.user_id==user.id)
+                                .filter(EventBookmark.event_id == event.id)
+                                .filter(EventBookmark.user_id == user.id)
                                 .exists()
                                 ).scalar()
 
@@ -1447,8 +1465,8 @@ class EventBookmark(db.Model):
     @staticmethod
     def delete_bookmark(event, user):
         db.session.query(EventBookmark) \
-            .filter(EventBookmark.event_id==event.id) \
-            .filter(EventBookmark.user_id==user.id) \
+            .filter(EventBookmark.event_id == event.id) \
+            .filter(EventBookmark.user_id == user.id) \
             .delete()
         db.session.commit()
 
@@ -1516,7 +1534,7 @@ class EventTicketType(db.Model):
     @classmethod
     def has_ticket_type(cls, ticket_type_id):
         return db.session.query(db.session.query(EventTicketType)
-                                .filter(EventTicketType.id==ticket_type_id)
+                                .filter(EventTicketType.id == ticket_type_id)
                                 .exists()
                                 ).scalar()
 
@@ -1525,7 +1543,7 @@ class EventTicketType(db.Model):
         if not cls.has_ticket_type(ticket_type_id):
             raise exceptions.TicketTypeNotFound()
 
-        return db.session.query(EventTicketType).filter(EventTicketType.id==ticket_type_id).first()
+        return db.session.query(EventTicketType).filter(EventTicketType.id == ticket_type_id).first()
 
     def is_same(self, ticket_type):
         return ticket_type.id == self.id
@@ -1548,13 +1566,13 @@ class EventTicketType(db.Model):
     def get_reserved_qty(self):
         result = db.session.query(func.coalesce(func.sum(EventTicketReservation.total_tickets_qty), 0)) \
             .filter(EventTicketReservation.expires_at > datetime.now()) \
-            .filter(EventTicketReservation.reservation_lines.any(EventTicketReservationLine.ticket_type==self)) \
+            .filter(EventTicketReservation.reservation_lines.any(EventTicketReservationLine.ticket_type == self)) \
             .first()
         return result[0]
 
     def get_purchased_qty(self):
         qty = db.session.query(EventTicketSaleLine) \
-            .filter(EventTicketSaleLine.ticket_type_id==self.id) \
+            .filter(EventTicketSaleLine.ticket_type_id == self.id) \
             .count()
         return qty
 
@@ -1566,17 +1584,17 @@ class EventTicketType(db.Model):
     def get_ticket_type(cls, ticket_type_id):
         if not cls.has_ticket_type(ticket_type_id):
             raise exceptions.TicketTypeNotFound()
-        return db.session.query(EventTicketType).filter(EventTicketType.id==ticket_type_id).first()
+        return db.session.query(EventTicketType).filter(EventTicketType.id == ticket_type_id).first()
 
     @staticmethod
     def has_ticket_type(ticket_type_id):
-        return db.session.query(EventTicketType).filter(EventTicketType.id==ticket_type_id).count()
+        return db.session.query(EventTicketType).filter(EventTicketType.id == ticket_type_id).count()
 
     @staticmethod
     def delete_ticket_type(ticket_type_id):
         if not EventTicketType.has_ticket_type(ticket_type_id):
             raise exceptions.TicketNotFound()
-        db.session.query(EventTicketType).filter(EventTicketType.id==ticket_type_id).delete()
+        db.session.query(EventTicketType).filter(EventTicketType.id == ticket_type_id).delete()
         db.session.commit()
 
     def add_discount(self, discount):
@@ -1587,10 +1605,10 @@ class EventTicketType(db.Model):
 
     def get_discounts(self):
         pdate = datetime.now()
-        discounts = db.session.query(EventTicketDiscount)\
-            .filter(EventTicketDiscount.ticket_type_id == self.id)\
-            .filter(EventTicketDiscount.from_datetime <= pdate)\
-            .filter(EventTicketDiscount.to_datetime >= pdate)\
+        discounts = db.session.query(EventTicketDiscount) \
+            .filter(EventTicketDiscount.ticket_type_id == self.id) \
+            .filter(EventTicketDiscount.from_datetime <= pdate) \
+            .filter(EventTicketDiscount.to_datetime >= pdate) \
             .all()
 
         print('mydiscounts##', discounts)
@@ -1600,7 +1618,7 @@ class EventTicketType(db.Model):
 class EventTicketReservation(db.Model):
     __tablename__ = 'ticket_reservations'
 
-    RESERVATION_LIMIT = 3 # Reservations limit is in minutes
+    RESERVATION_LIMIT = 3  # Reservations limit is in minutes
 
     id = db.Column(db.String, primary_key=True)
     created_at = db.Column(db.DateTime, index=True)
@@ -1621,7 +1639,7 @@ class EventTicketReservation(db.Model):
     @classmethod
     def has_reservation_from(cls, reservation_by=None):
         count = db.session.query(EventTicketReservation) \
-            .filter(EventTicketReservation.reservation_by==reservation_by) \
+            .filter(EventTicketReservation.reservation_by == reservation_by) \
             .filter(EventTicketReservation.expires_at > datetime.now()) \
             .count()
         return bool(count)
@@ -1647,7 +1665,8 @@ class EventTicketReservation(db.Model):
         """
         cls._check_insufficient_tickets_and_raise_exception(reservation_lines)
 
-        reservation_lines_obj = list(map(lambda line: EventTicketReservationLine(ticket_type=line[0], ticket_qty=line[1]), reservation_lines))
+        reservation_lines_obj = list(
+            map(lambda line: EventTicketReservationLine(ticket_type=line[0], ticket_qty=line[1]), reservation_lines))
         if cls.has_reservation_from(reservation_by):
             raise exceptions.AlreadyHasTicketReservation(reservation=cls.get_reservation_from(reservation_by))
         reservation = cls(reservation_lines_obj, reservation_by)
@@ -1672,7 +1691,7 @@ class EventTicketReservation(db.Model):
     @staticmethod
     def get_reservation_from(reservation_by):
         return db.session.query(EventTicketReservation) \
-            .filter(EventTicketReservation.reservation_by==reservation_by) \
+            .filter(EventTicketReservation.reservation_by == reservation_by) \
             .filter(EventTicketReservation.expires_at > datetime.now()) \
             .first()
 
@@ -1690,7 +1709,7 @@ class EventTicketReservation(db.Model):
         :return:
         """
         db.session.query(EventTicketReservation) \
-            .filter(EventTicketReservation.reservation_by==reservations_by) \
+            .filter(EventTicketReservation.reservation_by == reservations_by) \
             .delete()
         db.session.commit()
 
@@ -1699,7 +1718,8 @@ class EventTicketReservationLine(db.Model):
     __tablename__ = 'ticket_reservation_lines'
 
     id = db.Column(db.String, primary_key=True)
-    ticket_type_id = db.Column(db.String, db.ForeignKey('event_ticket_types.id', onupdate=CASCADE, ondelete=CASCADE), index=True)
+    ticket_type_id = db.Column(db.String, db.ForeignKey('event_ticket_types.id', onupdate=CASCADE, ondelete=CASCADE),
+                               index=True)
     ticket_type = relationship('EventTicketType')
     ticket_qty = db.Column(db.Float)
     reservation_id = db.Column(db.String, db.ForeignKey('ticket_reservations.id', onupdate=CASCADE, ondelete=CASCADE))
@@ -1726,7 +1746,8 @@ class EventTicketDiscountType(db.Model):
 
     @staticmethod
     def has_discount_type(self, discount_type_id):
-        return db.session.query(db.session.query(EventTicketDiscountType).filter(EventTicketDiscountType.id==discount_type_id).exists()).scalar()
+        return db.session.query(db.session.query(EventTicketDiscountType).filter(
+            EventTicketDiscountType.id == discount_type_id).exists()).scalar()
 
     @staticmethod
     def create(name):
@@ -1739,7 +1760,7 @@ class EventTicketDiscountType(db.Model):
     def delete(cls, discount_type_id):
         if not cls.has_discount_type((discount_type_id)):
             raise exceptions.TicketTypeDiscountTypeNotFound()
-        db.session.query(EventTicketDiscountType).filter(EventTicketDiscountType.id==discount_type_id).delete()
+        db.session.query(EventTicketDiscountType).filter(EventTicketDiscountType.id == discount_type_id).delete()
         db.session.commit()
 
     # @classmethod
@@ -1750,7 +1771,7 @@ class EventTicketDiscountType(db.Model):
 
 
 class EventRecommendation(db.Model):
-    __tablename__= 'event_recommendations'
+    __tablename__ = 'event_recommendations'
 
     id = db.Column(db.String, primary_key=True)
     event = relationship('Event')
@@ -1790,7 +1811,7 @@ class EventRecommendation(db.Model):
 
 class AttendeeTicketGroupedByType:
 
-    def __init__(self, type=None,assigned_tickets=None, unassigned_tickets=None):
+    def __init__(self, type=None, assigned_tickets=None, unassigned_tickets=None):
         self.type = type or None
         self.assigned_tickets = assigned_tickets or []
         self.unassigned_tickets = unassigned_tickets or []
@@ -1876,7 +1897,6 @@ class EventTicketSaleOrder(db.Model):
         if customer:
             self.customer = customer
 
-
     def generate_invoice(self):
         pass
 
@@ -1895,7 +1915,7 @@ class EventTicketSaleOrder(db.Model):
             if ticket_type.get_unpurchased_qty() < ticket_qty:
                 raise exceptions.UnvailableTickets()
             sale_order.sale_lines.append(
-                    EventTicketSaleLine(sale_order=sale_order, ticket_type=ticket_type, ticket_qty=ticket_qty)
+                EventTicketSaleLine(sale_order=sale_order, ticket_type=ticket_type, ticket_qty=ticket_qty)
             )
 
         sale_amount = 0
@@ -1917,8 +1937,11 @@ class EventTicketSaleOrder(db.Model):
             attendee_tickets.append(AttendeeTicket(line))
 
         for ticket_type in ticket_types:
-            assigned_tickets = list(filter(lambda ticket: ticket.is_assigned and ticket.type.is_same(ticket_type), attendee_tickets))
-            unassigned_tickets = list(filter(lambda ticket: ticket.is_assigned is False and ticket.type.is_same(ticket_type), attendee_tickets))
+            assigned_tickets = list(
+                filter(lambda ticket: ticket.is_assigned and ticket.type.is_same(ticket_type), attendee_tickets))
+            unassigned_tickets = list(
+                filter(lambda ticket: ticket.is_assigned is False and ticket.type.is_same(ticket_type),
+                       attendee_tickets))
             groups.append(AttendeeTicketGroupedByType(type=ticket_type,
                                                       assigned_tickets=assigned_tickets,
                                                       unassigned_tickets=unassigned_tickets
@@ -1935,7 +1958,8 @@ class EventTicketSaleLine(db.Model):
     ticket_type = relationship(EventTicketType)
     ticket_qty = db.Column(db.Integer)
     sale_order_id = db.Column(db.String, db.ForeignKey('ticket_sales.id', onupdate='CASCADE', ondelete='CASCADE'))
-    ticket_type_id = db.Column(db.String, db.ForeignKey('event_ticket_types.id', onupdate='CASCADE', ondelete='CASCADE'))
+    ticket_type_id = db.Column(db.String,
+                               db.ForeignKey('event_ticket_types.id', onupdate='CASCADE', ondelete='CASCADE'))
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime)
     total_amount = db.Column(db.Float)
@@ -1975,7 +1999,8 @@ class EventTicketSaleLineDiscount(db.Model):
     __tablename__ = 'ticket_sale_lines_discounts'
 
     id = db.Column(db.String, primary_key=True)
-    discount_type_id = db.Column(db.String, db.ForeignKey('event_ticket_discounts.id', onupdate=CASCADE, ondelete=CASCADE))
+    discount_type_id = db.Column(db.String,
+                                 db.ForeignKey('event_ticket_discounts.id', onupdate=CASCADE, ondelete=CASCADE))
     discount_type = relationship('EventTicketDiscount')
     amount = db.Column(db.Float)
     order_line_id = db.Column(db.String, db.ForeignKey('ticket_sale_lines.id', onupdate=CASCADE, ondelete=CASCADE))
@@ -2011,7 +2036,8 @@ class EventTicketDiscount(db.Model):
     max_ticket_qty = db.Column(db.Float)
     ticket_qty = db.Column(db.Float)
 
-    def __init__(self, name=None, from_datetime=None, to_datetime=None, rate=None, operator=None, min_ticket_qty=None, max_ticket_qty=None, ticket_qty=None, discount_type=None):
+    def __init__(self, name=None, from_datetime=None, to_datetime=None, rate=None, operator=None, min_ticket_qty=None,
+                 max_ticket_qty=None, ticket_qty=None, discount_type=None):
         self.id = str(uuid.uuid4())
         self.name = name
         self.from_datetime = from_datetime
@@ -2024,26 +2050,30 @@ class EventTicketDiscount(db.Model):
         self.type = discount_type
 
     @classmethod
-    def create(cls, name, from_datetime, to_datetime, rate, operator, min_ticket_qty, max_ticket_qty, ticket_qty, discount_type):
-        discount = cls(name=name, from_datetime=from_datetime, to_datetime=to_datetime, rate=rate, operator=operator, min_ticket_qty=min_ticket_qty, max_ticket_qty=max_ticket_qty, ticket_qty=ticket_qty, discount_type=discount_type)
+    def create(cls, name, from_datetime, to_datetime, rate, operator, min_ticket_qty, max_ticket_qty, ticket_qty,
+               discount_type):
+        discount = cls(name=name, from_datetime=from_datetime, to_datetime=to_datetime, rate=rate, operator=operator,
+                       min_ticket_qty=min_ticket_qty, max_ticket_qty=max_ticket_qty, ticket_qty=ticket_qty,
+                       discount_type=discount_type)
         db.session.add(discount)
         db.session.commit()
         return discount
 
     @classmethod
     def has_discount(cls, discount_id):
-        return db.session.query(db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id==discount_id).exists()).scalar()
+        return db.session.query(
+            db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id == discount_id).exists()).scalar()
 
     @classmethod
     def delete_discount(cls, discount_id):
         if not cls.has_discount(discount_id):
             raise exceptions.TicketDiscountNotFound()
-        db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id==discount_id).delete()
+        db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id == discount_id).delete()
         db.session.commit()
 
     @classmethod
     def get_discount(cls, discount_id):
-        return db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id==discount_id).delete()
+        return db.session.query(EventTicketDiscount).filter(EventTicketDiscount.id == discount_id).delete()
 
     def update(self):
         db.session.add(self)
@@ -2113,7 +2143,7 @@ class EventTicket(db.Model):
 
     @classmethod
     def has_ticket(cls, ticket_id):
-        return db.session.query(db.session.query(EventTicket).filter(EventTicket.id==ticket_id).exists()).scalar()
+        return db.session.query(db.session.query(EventTicket).filter(EventTicket.id == ticket_id).exists()).scalar()
 
     @classmethod
     def user_has_tickets_for_event(cls, event, user):
@@ -2124,7 +2154,8 @@ class EventTicket(db.Model):
         :param user:
         :return:
         """
-        return cls.user_has_gifted_tickets_for_event(event, user) or cls.user_has_unassigned_tickets_for_event(event, user)
+        return cls.user_has_gifted_tickets_for_event(event, user) or cls.user_has_unassigned_tickets_for_event(event,
+                                                                                                               user)
 
     @staticmethod
     def user_has_assigned_tickets_for_event(event, user):
@@ -2132,7 +2163,7 @@ class EventTicket(db.Model):
             .options(joinedload(EventTicket.owner)) \
             .filter(EventTicket.event == event) \
             .filter(EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id),
-                    EventTicketTypeAssignment.assigned_to==user) \
+                    EventTicketTypeAssignment.assigned_to == user) \
             .count()
         return bool(count)
 
@@ -2141,16 +2172,18 @@ class EventTicket(db.Model):
         return db.session.query(db.session.query(EventTicket)
                                 .options(joinedload(EventTicket.owner))
                                 .filter(EventTicket.event_id == event.id)
-                                .filter(EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id),
-                                        EventTicketTypeAssignment.assigned_to_user_id == user.id
-                                        ).exists()).scalar()
+                                .filter(
+            EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id),
+            EventTicketTypeAssignment.assigned_to_user_id == user.id
+            ).exists()).scalar()
 
     @staticmethod
     def user_has_unassigned_tickets_for_event(event, user):
         return db.session.query(db.session.query(EventTicket)
                                 .options(joinedload(EventTicket.owner))
                                 .filter(EventTicket.event_id == event.id)
-                                .filter(~EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id))
+                                .filter(
+            ~EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id))
                                 .filter(EventTicket.owner_id == user.id).exists()).scalar()
 
     @staticmethod
@@ -2177,7 +2210,8 @@ class EventTicket(db.Model):
         if user:
             if self.user_has_tickets_for_event(self.event, user):
                 raise exceptions.AlreadyHasTicketsForEvent()
-            self.assignment = [EventTicketTypeAssignment.create(event=self.event, sale_line=self.sale_line, assigned_by=self.sale_order.customer, assigned_to=user)]
+            self.assignment = [EventTicketTypeAssignment.create(event=self.event, sale_line=self.sale_line,
+                                                                assigned_by=self.sale_order.customer, assigned_to=user)]
             self.is_assigned = True
             db.session.add(self)
             db.session.commit()
@@ -2211,7 +2245,8 @@ class EventTicket(db.Model):
         return bool(count)
 
     def is_assigned_to(self, user):
-        return db.session.query(db.session.query(EventTicket).filter(EventTicket.assignment.any(EventTicketTypeAssignment.assigned_to==user)).exists()).scalar()
+        return db.session.query(db.session.query(EventTicket).filter(
+            EventTicket.assignment.any(EventTicketTypeAssignment.assigned_to == user)).exists()).scalar()
 
     def generate_reference(self):
         ref = "REF#" + str(random.randint(100, 999999999999999999999))
@@ -2235,20 +2270,20 @@ class EventTicket(db.Model):
         :param ticket_type:
         :return:
         """
-        query = db.session.query(EventTicket).filter(EventTicket.ticket_type_id==ticket_type.id)
+        query = db.session.query(EventTicket).filter(EventTicket.ticket_type_id == ticket_type.id)
 
         if user:
-            query = query.filter(EventTicket.assignment.any(EventTicketTypeAssignment.assigned_by_user_id==user.id))
-        query = query.filter(EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id==EventTicket.id))
+            query = query.filter(EventTicket.assignment.any(EventTicketTypeAssignment.assigned_by_user_id == user.id))
+        query = query.filter(EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id))
         return query.all()
 
     @staticmethod
     def get_unassigned_tickets_of_type(ticket_type, user=None):
-        query = db.session.query(EventTicket).filter(EventTicket.ticket_type_id==ticket_type.id) \
-            .filter(~EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id==EventTicket.id))
+        query = db.session.query(EventTicket).filter(EventTicket.ticket_type_id == ticket_type.id) \
+            .filter(~EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id))
 
         if user:
-            query = query.filter(EventTicket.owner_id==user.id)
+            query = query.filter(EventTicket.owner_id == user.id)
 
         unassigned_tickets = query.all()
         return unassigned_tickets
@@ -2261,7 +2296,7 @@ class EventTicket(db.Model):
             .options(joinedload(EventTicket.owner),
                      joinedload(EventTicket.assignment)
                      ) \
-            .filter(EventTicket.id==ticket_id) \
+            .filter(EventTicket.id == ticket_id) \
             .first()
 
 
@@ -2278,7 +2313,8 @@ class EventAttendee(db.Model):
     event_id = db.Column(db.String, db.ForeignKey('events.id', onupdate=CASCADE))
     event = relationship('Event')
 
-    def __init__(self, attendee=None, attendee_id=None, event_id=None, event=None, sale_order=None, sale_order_id=None, ownership_by_purchase=None, ownership_by_assignment=None):
+    def __init__(self, attendee=None, attendee_id=None, event_id=None, event=None, sale_order=None, sale_order_id=None,
+                 ownership_by_purchase=None, ownership_by_assignment=None):
         self.id = str(uuid.uuid4())
         self.attendee = attendee
         self.attendee_id = attendee_id
@@ -2290,7 +2326,8 @@ class EventAttendee(db.Model):
         self.ownership_by_purchase = ownership_by_purchase
 
     @classmethod
-    def add_attendee(cls, attendee=None, event=None, sale_order=None, ownership_by_purchase=None, ownership_by_assignment=None):
+    def add_attendee(cls, attendee=None, event=None, sale_order=None, ownership_by_purchase=None,
+                     ownership_by_assignment=None):
         event_attendee = EventAttendee(sale_order=sale_order, event=event, attendee=attendee,
                                        ownership_by_purchase=ownership_by_purchase,
                                        ownership_by_assignment=ownership_by_assignment)
@@ -2299,7 +2336,7 @@ class EventAttendee(db.Model):
 
     @classmethod
     def remove_attendee(cls, attendee):
-        db.session.query(EventAttendee).filter(EventAttendee.attendee_id==attendee.id).delete()
+        db.session.query(EventAttendee).filter(EventAttendee.attendee_id == attendee.id).delete()
         db.session.commit()
 
 
@@ -2357,7 +2394,7 @@ class EventTicketTypeAssignment(db.Model):
 class EventPrivacyInfo(db.Model):
     __tablename__ = 'event_privacy_info'
 
-    id = db.Column(db.String, primary_key=True,  default=str(uuid.uuid4()))
+    id = db.Column(db.String, primary_key=True, default=str(uuid.uuid4()))
     media_is_plateform_shareable = db.Column(db.Boolean)
     media_is_public_shareable = db.Column(db.Boolean)
 
@@ -2380,14 +2417,15 @@ class SocialMedia(db.Model):
 
     @classmethod
     def has_social_account(cls, social_account_id):
-        return db.session.query(db.session.query(SocialMedia).filter(SocialMedia.id==social_account_id).exists()).scalar()
+        return db.session.query(
+            db.session.query(SocialMedia).filter(SocialMedia.id == social_account_id).exists()).scalar()
 
     @classmethod
     def get_social_account(cls, account_id):
         if not cls.has_social_account(account_id):
             raise exceptions.SocialAccountNotFound()
 
-        return db.session.query(SocialMedia).filter(SocialMedia.id==account_id).first()
+        return db.session.query(SocialMedia).filter(SocialMedia.id == account_id).first()
 
     @classmethod
     def get_all(cls):
@@ -2435,28 +2473,28 @@ class EventReview(db.Model):
             self.event_id = event_id
 
     def is_upvoted_by(self, author):
-        return  db.session.query(db.session.query(EventReviewUpvote)
-            .filter(EventReviewUpvote.review_id == self.id)
-            .filter(EventReviewUpvote.author_id == author.id).exists()).scalar()
+        return db.session.query(db.session.query(EventReviewUpvote)
+                                .filter(EventReviewUpvote.review_id == self.id)
+                                .filter(EventReviewUpvote.author_id == author.id).exists()).scalar()
 
     def is_downvoted_by(self, author):
         return db.session.query(db.session.query(EventReviewDownvote)
-            .filter(EventReviewDownvote.review_id == self.id)
-            .filter(EventReviewDownvote.author_id == author.id).exists()).scalar()
+                                .filter(EventReviewDownvote.review_id == self.id)
+                                .filter(EventReviewDownvote.author_id == author.id).exists()).scalar()
 
     def upvotes_count(self):
         return db.session.query(EventReviewUpvote) \
-            .filter(EventReviewUpvote.review_id==self.id) \
+            .filter(EventReviewUpvote.review_id == self.id) \
             .count()
 
     def downvotes_count(self):
         return db.session.query(EventReviewDownvote) \
-            .filter(EventReviewDownvote.review_id==self.id) \
+            .filter(EventReviewDownvote.review_id == self.id) \
             .count()
 
     def comments_count(self):
         return db.session.query(EventReviewComment) \
-            .filter(EventReviewComment.review_id==self.id) \
+            .filter(EventReviewComment.review_id == self.id) \
             .count()
 
     def upvote(self, upvote):
@@ -2522,27 +2560,31 @@ class EventReview(db.Model):
             raise exceptions.ReviewCommentNotFound()
 
         return db.session.query(EventReviewComment).options(
-                joinedload(EventReviewComment.upvotes),
-                joinedload(EventReviewComment.downvotes),
-                joinedload(EventReviewComment.author),
-                joinedload(EventReviewComment.media)
+            joinedload(EventReviewComment.upvotes),
+            joinedload(EventReviewComment.downvotes),
+            joinedload(EventReviewComment.author),
+            joinedload(EventReviewComment.media)
         ).filter(EventReviewComment.review_id == self.id) \
             .filter(EventReviewComment.id == comment_id) \
             .first()
 
     def get_review_comments(self, cursor):
         query = db.session.query(EventReviewComment).options(
-                joinedload(EventReviewComment.upvotes),
-                joinedload(EventReviewComment.downvotes),
-                joinedload(EventReviewComment.author),
-                joinedload(EventReviewComment.media)
+            joinedload(EventReviewComment.upvotes),
+            joinedload(EventReviewComment.downvotes),
+            joinedload(EventReviewComment.author),
+            joinedload(EventReviewComment.media)
         ).filter(EventReviewComment.review_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) > func.round(cursor.get_before_as_float()), 3)
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) > func.round(
+                    cursor.get_before_as_float()), 3)
 
         comments = query.order_by(EventReviewComment.created_at.desc()).limit(cursor.limit).all()
         if comments:
@@ -2599,7 +2641,7 @@ class EventReviewMedia(db.Model):
         db.session.commit()
 
     def delete(self):
-        db.session.query(EventMedia).filter(EventMedia.id==self.id).delete()
+        db.session.query(EventMedia).filter(EventMedia.id == self.id).delete()
         db.session.commit()
 
 
@@ -2788,7 +2830,7 @@ class EventReviewComment(db.Model):
     @classmethod
     def has_comment(cls, comment_id):
         return db.session.query(db.session.query(EventReviewComment)
-                                .filter(EventReviewComment.id==comment_id).exists()).scalar()
+                                .filter(EventReviewComment.id == comment_id).exists()).scalar()
 
     def is_upvoted_by(self, author):
         return db.session.query(db.session.query(EventReviewCommentUpvote) \
@@ -2804,17 +2846,17 @@ class EventReviewComment(db.Model):
 
     def upvotes_count(self):
         return db.session.query(EventReviewCommentUpvote) \
-            .filter(EventReviewCommentUpvote.comment_id==self.id) \
+            .filter(EventReviewCommentUpvote.comment_id == self.id) \
             .count()
 
     def downvotes_count(self):
         return db.session.query(EventReviewCommentDownvote) \
-            .filter(EventReviewCommentDownvote.comment_id==self.id) \
+            .filter(EventReviewCommentDownvote.comment_id == self.id) \
             .count()
 
     def responses_count(self):
         return db.session.query(EventReviewCommentResponse) \
-            .filter(EventReviewCommentResponse.comment_id==self.id) \
+            .filter(EventReviewCommentResponse.comment_id == self.id) \
             .count()
 
     def upvote(self, author):
@@ -2862,7 +2904,7 @@ class EventReviewComment(db.Model):
             raise exceptions.EventReviewCommentResponseNotFound()
 
         db.session.query(EventReviewCommentResponse) \
-            .filter(EventReviewCommentResponse.comment_id==self.id) \
+            .filter(EventReviewCommentResponse.comment_id == self.id) \
             .filter(EventReviewCommentResponse.id == response_id) \
             .delete()
 
@@ -2871,7 +2913,7 @@ class EventReviewComment(db.Model):
             raise exceptions.EventReviewCommentResponseNotFound()
 
         return db.session.query(EventReviewCommentResponse) \
-            .filter(EventReviewCommentResponse.comment_id==self.id) \
+            .filter(EventReviewCommentResponse.comment_id == self.id) \
             .filter(EventReviewCommentResponse.id == response_id) \
             .first()
 
@@ -2881,26 +2923,30 @@ class EventReviewComment(db.Model):
             raise exceptions.EventReviewCommentResponseNotFound()
 
         return db.session.query(EventReviewCommentResponse).options(
-                joinedload(EventReviewCommentResponse.upvotes),
-                joinedload(EventReviewCommentResponse.downvotes),
-                joinedload(EventReviewCommentResponse.author),
-                joinedload(EventReviewCommentResponse.media)
+            joinedload(EventReviewCommentResponse.upvotes),
+            joinedload(EventReviewCommentResponse.downvotes),
+            joinedload(EventReviewCommentResponse.author),
+            joinedload(EventReviewCommentResponse.media)
         ).filter(EventReviewCommentResponse.id == response_id) \
             .first()
 
     def get_responses(self, cursor):
         query = db.session.query(EventReviewCommentResponse).options(
-                joinedload(EventReviewCommentResponse.upvotes),
-                joinedload(EventReviewCommentResponse.downvotes),
-                joinedload(EventReviewCommentResponse.author),
-                joinedload(EventReviewCommentResponse.media)
+            joinedload(EventReviewCommentResponse.upvotes),
+            joinedload(EventReviewCommentResponse.downvotes),
+            joinedload(EventReviewCommentResponse.author),
+            joinedload(EventReviewCommentResponse.media)
         ).filter(EventReviewCommentResponse.comment_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) > func.round(
+                    cursor.get_before_as_float(), 3))
 
         responses = query.order_by(EventReviewCommentResponse.created_at.desc()).limit(cursor.limit).all()
 
@@ -3101,7 +3147,8 @@ class EventReviewCommentResponseMedia(db.Model):
     source_url = db.Column(db.String)
     media_type = db.Column(db.String)
     poster = Column(Boolean, default=False)
-    response_id = db.Column(db.String, db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
+    response_id = db.Column(db.String,
+                            db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventReviewCommentResponse)
     created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
@@ -3147,7 +3194,8 @@ class EventReviewCommentResponseUpvote(db.Model):
     id = db.Column(db.String, primary_key=True)
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
     author = relationship(User)
-    response_id = db.Column(db.String, db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
+    response_id = db.Column(db.String,
+                            db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventReviewCommentResponse)
     created_at = db.Column(db.DateTime)
 
@@ -3168,7 +3216,8 @@ class EventReviewCommentResponseDownvote(db.Model):
     id = db.Column(db.String, primary_key=True)
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
     author = relationship(User)
-    response_id = db.Column(db.String, db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
+    response_id = db.Column(db.String,
+                            db.ForeignKey('event_review_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventReviewCommentResponse)
     created_at = db.Column(db.DateTime)
 
@@ -3284,7 +3333,7 @@ class EventStreamCommentResponse(db.Model):
 
     def __init__(self):
         self.id = str(uuid.uuid4())
-        self.published_at =datetime.now()
+        self.published_at = datetime.now()
 
 
 class EventStreamCommentResponseMedia(db.Model):
@@ -3293,7 +3342,8 @@ class EventStreamCommentResponseMedia(db.Model):
     id = db.Column(db.String, primary_key=True)
     type = db.Column(db.String, index=True)
     url = db.Column(db.String)
-    response_id = db.Column(db.String, db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
+    response_id = db.Column(db.String,
+                            db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventStreamCommentResponse)
 
     def __init__(self):
@@ -3306,7 +3356,8 @@ class EventStreamCommentResponseUpvote(db.Model):
     id = db.Column(db.String, primary_key=True)
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
     author = relationship(User)
-    response_id = db.Column(db.String, db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
+    response_id = db.Column(db.String,
+                            db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventStreamCommentResponse)
     created_at = db.Column(db.DateTime)
 
@@ -3333,7 +3384,8 @@ class EventStreamCommentResponseDownvote(db.Model):
     id = db.Column(db.String, primary_key=True)
     author_id = db.Column(db.String, db.ForeignKey('users.id'))
     author = relationship(User)
-    response_id = db.Column(db.String, db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
+    response_id = db.Column(db.String,
+                            db.ForeignKey('event_stream_comment_responses.id', ondelete=CASCADE, onupdate=CASCADE))
     response = relationship(EventStreamCommentResponse)
     created_at = db.Column(db.DateTime)
 
@@ -3358,7 +3410,7 @@ class BrandCategory(db.Model):
     __tablename__ = 'brand_categories'
 
     id = db.Column(db.String, primary_key=True)
-    name= db.Column(db.String)
+    name = db.Column(db.String)
     brands = relationship('Brand', backref='brand_categories')
 
     def __init__(self, name=None):
@@ -3367,7 +3419,8 @@ class BrandCategory(db.Model):
 
     @staticmethod
     def has_category(category_id):
-        return db.session.query(db.session.query(BrandCategory).filter(BrandCategory.id == category_id).exists()).scalar()
+        return db.session.query(
+            db.session.query(BrandCategory).filter(BrandCategory.id == category_id).exists()).scalar()
 
     @staticmethod
     def get_categories():
@@ -3418,7 +3471,8 @@ class Brand(db.Model):
     founded_date = db.Column(db.String)
     website_link = db.Column(db.String)
 
-    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, founded_date=None, website_link=None):
+    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None,
+                 founded_date=None, website_link=None):
         self.id = str(uuid.uuid4())
         self.created_at = datetime.now()
         self.name = name
@@ -3432,8 +3486,10 @@ class Brand(db.Model):
         self.website_link = website_link
 
     @classmethod
-    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None, founded_date=None, website_link=None):
-        brand = cls(name=name, description=description, country=country, creator=creator, category=category, image=image, founder=founder, founded_date=founded_date, website_link=website_link)
+    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None,
+               founded_date=None, website_link=None):
+        brand = cls(name=name, description=description, country=country, creator=creator, category=category,
+                    image=image, founder=founder, founded_date=founded_date, website_link=website_link)
         db.session.add(brand)
         db.session.commit()
         return brand
@@ -3453,10 +3509,12 @@ class Brand(db.Model):
         query = query.options(joinedload(Brand.endorsements))
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
         brands = query.order_by(Brand.created_at.desc()).limit(cursor.limit).all()
 
@@ -3485,26 +3543,26 @@ class Brand(db.Model):
         if not cls.has_brand(brand_id):
             raise exceptions.BrandNotFound()
         return db.session.query(Brand).options(
-                joinedload(Brand.endorsements)
+            joinedload(Brand.endorsements)
         ).filter(Brand.id == brand_id).first()
 
     def is_validated_by_user(self, user):
         return db.session.query(
-                db.session.query(BrandValidation)
-                    .filter(BrandValidation.validator_id==user.id)
-                    .filter(BrandValidation.brand_id==self.id)
-                    .exists()
+            db.session.query(BrandValidation)
+                .filter(BrandValidation.validator_id == user.id)
+                .filter(BrandValidation.brand_id == self.id)
+                .exists()
         ).scalar()
 
     @classmethod
     def delete_brand(cls, brand_id):
         if not cls.has_brand(brand_id):
             raise exceptions.BrandNotFound()
-        db.session.query(Brand).filter(Brand.id==brand_id).delete()
+        db.session.query(Brand).filter(Brand.id == brand_id).delete()
         db.session.commit()
 
     def get_brand_endorsements(self):
-        return db.session.query(BrandValidation).filter(BrandValidation.brand_id==self.id).all()
+        return db.session.query(BrandValidation).filter(BrandValidation.brand_id == self.id).all()
 
     def add_validation(self, validation):
         if self.is_validated_by_user(validation.validator):
@@ -3513,7 +3571,8 @@ class Brand(db.Model):
         db.session.commit()
 
     def remove_validation_of_user(self, user):
-        db.session.query(BrandValidation).filter(BrandValidation.validator_id==user.id).filter(BrandValidation.brand_id==self.id).delete()
+        db.session.query(BrandValidation).filter(BrandValidation.validator_id == user.id).filter(
+            BrandValidation.brand_id == self.id).delete()
         db.session.commit()
 
     def update(self):
@@ -3617,7 +3676,8 @@ class UserPaymentDetails(db.Model):
 
     @classmethod
     def create_mobile_payment(cls, user, mobile_info, is_default_payment=False):
-        payment_info = cls(user, payment_type=PaymentTypes.MOBILE_MONEY, is_default_payment=is_default_payment, mobile_payment_info=mobile_info)
+        payment_info = cls(user, payment_type=PaymentTypes.MOBILE_MONEY, is_default_payment=is_default_payment,
+                           mobile_payment_info=mobile_info)
         db.session.add(payment_info)
         db.session.commit()
         cls.set_default_payment(payment_info)
@@ -3625,7 +3685,8 @@ class UserPaymentDetails(db.Model):
 
     @classmethod
     def create_card_payment(cls, user, card_info, is_default_payment=False):
-        payment_info = cls(user, payment_type=PaymentTypes.CARD, is_default_payment=is_default_payment, card_payment_info=card_info)
+        payment_info = cls(user, payment_type=PaymentTypes.CARD, is_default_payment=is_default_payment,
+                           card_payment_info=card_info)
         db.session.add(payment_info)
         db.session.commit()
         cls.set_default_payment(payment_info)
@@ -3659,27 +3720,34 @@ class UserPaymentDetails(db.Model):
 
     @classmethod
     def has_card_payment(cls, user):
-        return db.session.query(db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id==user.id).filter(UserPaymentDetails.payment_type==PaymentTypes.CARD).exists()).scalar()
+        return db.session.query(
+            db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).filter(
+                UserPaymentDetails.payment_type == PaymentTypes.CARD).exists()).scalar()
 
     @classmethod
     def has_mobile_money_payment(cls, user):
-        return db.session.query(db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id==user.id).filter(UserPaymentDetails.payment_type==PaymentTypes.MOBILE_MONEY).exists()).scalar()
+        return db.session.query(
+            db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).filter(
+                UserPaymentDetails.payment_type == PaymentTypes.MOBILE_MONEY).exists()).scalar()
 
     @classmethod
     def get_payment(cls, user):
-        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id==user.id).first()
+        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).first()
 
     @classmethod
     def get_card_payment(cls, user):
-        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id==user.id).filter(UserPaymentDetails.payment_type==PaymentTypes.CARD).first()
+        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).filter(
+            UserPaymentDetails.payment_type == PaymentTypes.CARD).first()
 
     @classmethod
     def get_mobile_payment(cls, user):
-        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).filter(UserPaymentDetails.payment_type==PaymentTypes.MOBILE_MONEY).first()
+        return db.session.query(UserPaymentDetails).filter(UserPaymentDetails.user_id == user.id).filter(
+            UserPaymentDetails.payment_type == PaymentTypes.MOBILE_MONEY).first()
 
     @classmethod
     def has_payment_account(cls, account_id):
-        return db.session.query(db.session.query(UserPaymentDetails).filter(UserPaymentDetails.id == account_id).exists()).scalar()
+        return db.session.query(
+            db.session.query(UserPaymentDetails).filter(UserPaymentDetails.id == account_id).exists()).scalar()
 
     @classmethod
     def remove_payment_account(cls, account_id):
@@ -3713,7 +3781,8 @@ class Notifications(Enum):
     TICKET_ASSIGNED = "Ticket.assigned"
     TICKET_ASSIGNMENT_REVOKED = "Ticket.assigned_ticket_revoked"
 
-    event_notifications = [EVENT_CREATED, EVENT_UPDATED, EVENT_IS_DUE, EVENT_BOOKMARKED, EVENT_UNBOOKMARKED, EVENT_RECOMMENDED]
+    event_notifications = [EVENT_CREATED, EVENT_UPDATED, EVENT_IS_DUE, EVENT_BOOKMARKED, EVENT_UNBOOKMARKED,
+                           EVENT_RECOMMENDED]
     brand_notifications = [BRAND_UPDATED, BRAND_EVENT_AFFILIATE]
     user_notifications = [USER_CREATED, USER_PROFILE_UPDATED, USER_PASSWORD_CHANGED, USER_ONBOARDING_EMAIL]
     payment_notifications = [PAYMENT_INFO_UPDATED, PAYMENT_INFO_CLEARED]
@@ -3728,12 +3797,14 @@ class Notifications(Enum):
 
     @staticmethod
     def ticket_assigned_message(ticket, assigned_by):
-        return "{assigned_by_name} dashed you a free ticket for {event_name}".format(assigned_by_name=assigned_by.name, event_name=ticket.event.name)
+        return "{assigned_by_name} dashed you a free ticket for {event_name}".format(assigned_by_name=assigned_by.name,
+                                                                                     event_name=ticket.event.name)
 
     @staticmethod
     def ticket_unassigned_message(ticket, assigned_by):
-        return "{assigned_by_name} revoked a ticket dashed to you for the event, {event_name}".format(assigned_by_name=assigned_by.name,
-                                                                                                      event_name=ticket.event.name)
+        return "{assigned_by_name} revoked a ticket dashed to you for the event, {event_name}".format(
+            assigned_by_name=assigned_by.name,
+            event_name=ticket.event.name)
 
 
 class Notification(db.Model):
@@ -3776,8 +3847,8 @@ class Notification(db.Model):
     def get_unread_notifications(user, cursor=None):
 
         query = db.session.query(Notification) \
-            .filter(Notification.is_read==False) \
-            .filter(Notification.recipient_id==user.id)
+            .filter(Notification.is_read == False) \
+            .filter(Notification.recipient_id == user.id)
 
         if cursor.after:
             query = query.filter(func.extract('EPOCH', Notification.created_at) < cursor.get_after_as_float())
@@ -3793,7 +3864,7 @@ class Notification(db.Model):
 
     @staticmethod
     def get_all_notifications(user, cursor):
-        query = db.session.query(Notification).filter(Notification.recipient_id==user.id)
+        query = db.session.query(Notification).filter(Notification.recipient_id == user.id)
 
         if cursor.after:
             query = query.filter(func.extract('EPOCH', Notification.created_at) < cursor.get_after_as_float())
@@ -3813,8 +3884,8 @@ class Notification(db.Model):
     @staticmethod
     def get_read_notifications(user, cursor=None):
         query = db.session.query(Notification) \
-            .filter(Notification.recipient_id==user.id) \
-            .filter(Notification.is_read==True)
+            .filter(Notification.recipient_id == user.id) \
+            .filter(Notification.is_read == True)
 
         if cursor.after:
             query = query.filter(func.extract('EPOCH', Notification.created_at) < cursor.get_after_as_float())
@@ -3834,19 +3905,19 @@ class Notification(db.Model):
     @staticmethod
     def get_total_notifications(user):
         return db.session.query(Notification) \
-            .filter(Notification.recipient_id==user.id) \
+            .filter(Notification.recipient_id == user.id) \
             .count()
 
     @staticmethod
     def get_total_unread_notifications(user):
         return db.session.query(Notification) \
-            .filter(Notification.recipient_id==user.id) \
-            .filter(Notification.is_read==False) \
+            .filter(Notification.recipient_id == user.id) \
+            .filter(Notification.is_read == False) \
             .count()
 
     @staticmethod
     def get_total_read_notifications(user):
         return db.session.query(Notification) \
-            .filter(Notification.recipient_id==user.id) \
-            .filter(Notification.is_read==True) \
+            .filter(Notification.recipient_id == user.id) \
+            .filter(Notification.is_read == True) \
             .count()

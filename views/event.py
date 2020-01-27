@@ -21,6 +21,7 @@ import api.serializers as serializers
 from api.utils import TicketDiscountOperator, TicketDiscountType
 from api.models.domain.user_payment_info import DiscountTypes
 from . import *
+from ..models.pagination_cursor import PaginationCursor
 
 
 class EventView(AuthBaseView):
@@ -67,6 +68,7 @@ class EventView(AuthBaseView):
                     }
                 }
             })
+            return response(payload)
         else:
             # summary of events
             if period_query:
@@ -74,34 +76,64 @@ class EventView(AuthBaseView):
                     period_querys = [p.strip() for p in period_query.split(',')]
                     events = {}
                     for period_query in period_querys:
+                        cursor = PaginationCursor()
                         date = event_periods.EventPeriods.get_date(period_query)
                         fetched_events = models.Event.get_events_summary(period=date, cursor=cursor)
                         fetched_events = serializers.event_summary_schema.dump(fetched_events, many=True)
-                        events[period_query] = fetched_events
+                        events[period_query] = {
+                            'data': fetched_events,
+                            'metadata': {
+                                'cursor': {
+                                    'before': cursor.before,
+                                    'after': cursor.after,
+                                    'limit': cursor.limit
+                                },
+                            }
+                        }
                     events_count = None
+                    payload.update({
+                        'ok': True,
+                        'events': events,
+                        'events_count': events_count,
+                    })
+                    return response(payload)
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
                     events = models.Event.get_events_summary(category_id=category_id, period=date, cursor=cursor)
                     events = serializers.event_summary_schema.dump(events, many=True)
                     events_count = models.Event.get_events_total(category_id=category_id, period=date)
+                    payload.update({
+                        'ok': True,
+                        'events': events,
+                        'events_count': events_count,
+                        'metadata': {
+                            'cursor': {
+                                'before': cursor.before,
+                                'after': cursor.after,
+                                'limit': cursor.limit
+                            },
+                        }
+                    })
+                    return response(payload)
+
             else:
                 events = models.Event.get_events_summary(category_id=category_id, cursor=cursor)
                 events = serializers.event_summary_schema.dump(events, many=True)
                 events_count = models.Event.get_events_total(category_id=category_id)
 
-            payload.update({
-                'ok': True,
-                'events': events,
-                'events_count': events_count,
-                'metadata': {
-                    'cursor': {
-                        'before': cursor.before,
-                        'after': cursor.after,
-                        'limit': cursor.limit
-                    },
-                }
-            })
-        return response(payload)
+                payload.update({
+                    'ok': True,
+                    'events': events,
+                    'events_count': events_count,
+                    'metadata': {
+                        'cursor': {
+                            'before': cursor.before,
+                            'after': cursor.after,
+                            'limit': cursor.limit
+                        },
+                    }
+                })
+                return response(payload)
 
     def get(self, event_id):
 
