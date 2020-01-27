@@ -7,7 +7,7 @@ image_base_url = 'https://res.cloudinary.com/ofelix03/image/upload/v1579956502/e
 categories = [['Photography', image_base_url + 'o9efxlrvsxp1qmkdf4dd'],
               ['Sport', image_base_url + 'lfvbwr3igqqefgkfdbdp'],
               ['Education', image_base_url + 'apxizu26ftwkpjqqbicm'],
-              ['Technolgy', image_base_url + 'uis3xyhlzlrghlli65a2'],
+              ['Technology', image_base_url + 'uis3xyhlzlrghlli65a2'],
               ['Art & Culture', image_base_url + 'gaij4tzo7qe34xip9z8k'],
               ['Agriculture', image_base_url + 'gu8errtptdjk7wwqmfzl'],
               ['Business', image_base_url + 'sgbgutcqnhjpm4vwrkch'],
