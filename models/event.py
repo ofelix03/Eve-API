@@ -593,7 +593,7 @@ class Event(db.Model):
     recommendations = relationship('EventRecommendation', backref='events')
     user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete=CASCADE, onupdate=CASCADE))
     category_id = db.Column(db.String, db.ForeignKey('event_categories.id', ondelete=CASCADE, onupdate=CASCADE))
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
     is_shareable_during_event = db.Column(db.Boolean, default=True)
     is_shareable_after_event = db.Column(db.Boolean, default=True)
@@ -611,6 +611,7 @@ class Event(db.Model):
         self.end_datetime = end_datetime
         self.cover_image = cover_image
         self.is_published = is_published
+        self.created_at = datetime.now()
 
     @classmethod
     def has_event(cls, event_id):
@@ -817,7 +818,6 @@ class Event(db.Model):
                 query = query.filter(func.DATE(Event.start_datetime) == period_value)
             elif period_type == EventPeriods.TOMORROW:
                 query = query.filter(func.DATE(Event.start_datetime) == period_value)
-                print('am here now--felix##')
             elif period_type == EventPeriods.THIS_WEEK:
                 [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
@@ -835,18 +835,18 @@ class Event(db.Model):
             query = query.filter(Event.category_id == category_id)
         
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3)
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
                                  < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.start_datetime), Numeric), 3)
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
                                  > func.round(cursor.get_before_as_float(), 3))
 
         events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
         if events:
-            cursor.set_before(events[0].start_datetime)
-            cursor.set_after(events[-1].start_datetime)
+            cursor.set_before(events[0].created_at)
+            cursor.set_after(events[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
@@ -1260,7 +1260,7 @@ class EventMedia(db.Model):
     poster = Column(Boolean, default=False)
     event = relationship(Event)
     event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete='CASCADE', onupdate='CASCADE'))
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
     public_id = db.Column(db.String)
 
@@ -1272,6 +1272,7 @@ class EventMedia(db.Model):
         self.event = event
         self.is_poster = is_poster
         self.public_id = public_id
+        self.created_at = datetime.now()
 
     @classmethod
     def create(cls, event=None, source_url=None, format=None, is_poster=False, public_id=None):
