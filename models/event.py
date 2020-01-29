@@ -345,19 +345,16 @@ class User(db.Model):
         query = db.session.query(Event).filter(Event.id.in_(event_ids_query))
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query.order_by(Event.start_datetime).limit(cursor.limit)
-
-        events = query.all()
+        events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
         if events:
-            cursor.set_before(events[0].start_datetime)
-            cursor.set_after(events[-1].start_datetime)
+            cursor.set_before(events[0].created_at)
+            cursor.set_after(events[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
@@ -377,19 +374,16 @@ class User(db.Model):
             .filter(Event.user_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query.order_by(Event.start_datetime.desc()).limit(cursor.limit)
-
-        events = query.all()
+        events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
         if events:
-            cursor.set_before(events[0].start_datetime)
-            cursor.set_after(events[-1].start_datetime)
+            cursor.set_before(events[0].created_at)
+            cursor.set_after(events[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
@@ -408,19 +402,16 @@ class User(db.Model):
         query = db.session.query(Event).filter(Event.id.in_(query))
 
         if cursor and cursor.after:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) < cursor.get_after_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.extract('EPOCH', Event.start_datetime) > cursor.get_before_as_float())
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
 
-        if cursor and cursor.limit:
-            query = query.order_by(Event.start_datetime).limit(cursor.limit)
-
-        events = query.all()
+        events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
         if events:
-            cursor.set_before(events[0].start_datetime)
-            cursor.set_after(events[-1].start_datetime)
+            cursor.set_before(events[0].created_at)
+            cursor.set_after(events[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
