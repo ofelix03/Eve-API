@@ -1,5 +1,3 @@
-import factory
-from factory.faker import Faker
-from api.models.event import db
-from api.app import create_app
-from api.utils import hash_password
+from api.seeders import user
+from api.seeders import event_category
+from api.seeders import brand_category
