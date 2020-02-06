@@ -6,6 +6,7 @@ from sqlalchemy import func, or_, and_, text
 from sqlalchemy.orm import relationship
 from sqlalchemy import Boolean, Column
 from sqlalchemy import cast, Numeric
+from sqlalchemy.orm import load_only
 
 from api import utils
 from api.models.event_periods import EventPeriods
@@ -13,6 +14,7 @@ from api.models.pagination_cursor import PaginationCursor
 from api.models.domain.user_payment_info import PaymentTypes
 from api.exceptions import payments as payment_exceptions
 from api.repositories import exceptions
+
 
 # from api import exceptions
 from api.models.domain.user_payment_info import DiscountTypes
@@ -396,26 +398,28 @@ class User(db.Model):
             .count()
 
     def get_bookmarked_events(self, cursor):
-        query = db.session.query(EventTicket.event_id.label("event_id")) \
+        query = db.session.query(EventBookmark) \
+            .options(load_only('id', 'event_id', 'created_at')) \
             .filter(EventBookmark.user_id == self.id)
 
-        query = db.session.query(Event).filter(Event.id.in_(query))
-
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', EventBookmark.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
-        events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
+        bookmarks = query.order_by(EventBookmark.created_at.desc()).limit(cursor.limit).all()
 
-        if events:
-            cursor.set_before(events[0].created_at)
-            cursor.set_after(events[-1].created_at)
+        if len(bookmarks):
+            cursor.set_before(bookmarks[0].created_at)
+            cursor.set_after(bookmarks[-1].created_at)
         else:
             cursor.set_before(None)
             cursor.set_after(None)
 
+        events = db.session.query(Event).filter(Event.id.in_(list(map(lambda bookmark: bookmark.event_id, bookmarks)))).all()
         return events
 
     def get_bookmarked_events_count(self):
@@ -1427,10 +1431,10 @@ class EventCategory(db.Model):
 class EventBookmark(db.Model):
     __tablename__ = 'event_bookmarks'
 
-    id = db.Column(db.String, primary_key=True, default=str(uuid.uuid4()))
+    id = db.Column(db.String, primary_key=True)
     user = relationship('User')
     event = relationship('Event')
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime)
     user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete='CASCADE', onupdate='CASCADE'))
     event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete='CASCADE', onupdate='CASCADE'))
