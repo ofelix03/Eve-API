@@ -1811,6 +1811,7 @@ class EventView(AuthBaseView):
         category = request.args.get('category')
         country = request.args.get('country')
         period = request.args.get('time')
+
         search_result = models.Event.search_for_events(query, category=category, country=country, period=period, cursor=cursor)
         search_result_total = models.Event.search_for_events_total(query, category=category, country=country, period=period)
         events = serializers.event_schema.dump(search_result, many=True)

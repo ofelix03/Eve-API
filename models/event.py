@@ -566,6 +566,7 @@ class UserLoginHistory(db.Model):
             self.user = user
 
 
+
 class Event(db.Model):
     __tablename__ = 'events'
 
@@ -1112,6 +1113,7 @@ class Event(db.Model):
     def search_for_events(searchterm=None, category=None, period=None, country=None, cursor=None):
         # @todo use a more advance db.Text search tool
         query = db.session.query(Event).filter(Event.name.ilike('%' + searchterm + '%'))
+
         if category and category != 'all':
             query = query.filter(Event.category_id == category)
 
@@ -1123,27 +1125,23 @@ class Event(db.Model):
             elif period == EventPeriods.TOMORROW:
                 query = query.filter(func.DATE(Event.start_datetime) == period_value)
             elif period == EventPeriods.THIS_WEEK:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
             elif period == EventPeriods.THIS_MONTH:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
             elif period == EventPeriods.NEXT_MONTH:
                 start_date = period_value[0]
                 query = query.filter(func.DATE(Event.start_datetime) >= start_date)
             elif period == EventPeriods.THIS_YEAR:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
             elif period == EventPeriods.NEXT_YEAR:
-                start_date = period_value[0]
-                end_date = period_value[1]
+                [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
 
         if country:
-            pass
+            query = query.filter(Event.name.ilike('%' + country + '%'))
 
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
