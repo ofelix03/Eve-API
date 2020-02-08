@@ -61,6 +61,7 @@ class EventCategorySchema(Schema):
     id = fields.String(required=True)
     name = fields.String(required=True)
     image = fields.String()
+    slug = fields.String()
 
 
 class CreateEventBookmarkSchema(Schema):

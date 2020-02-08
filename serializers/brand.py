@@ -6,6 +6,7 @@ from api.serializers.image import MediaSchema, CreateMediaSchema
 class BrandCategorySchema(Schema):
     id = fields.String(required=True, dump_only=True)
     name = fields.String(required=True)
+    slug = fields.String(required=True)
     number_of_brands = fields.Function(lambda obj: len(obj.brands))
 
 
