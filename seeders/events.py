@@ -52,17 +52,6 @@ class EventMediaFactory(factory.alchemy.SQLAlchemyModelFactory):
     is_cover_image = False
 
 
-class JobFactory(factory.alchemy.SQLAlchemyModelFactory):
-    class Meta:
-        model = model.Job
-        sqlalchemy_session = session
-
-    id = factory.LazyFunction(lambda: str(uuid.uuid4()))
-    name = Faker('job')
-
-jobs = JobFactory.build_batch(30)
-session.add_all(jobs)
-session.commit()
 
 
 class EventContactInfoFactory(factory.alchemy.SQLAlchemyModelFactory):
@@ -103,10 +92,7 @@ class EventOrganizerFactory(factory.alchemy.SQLAlchemyModelFactory):
         model = model.EventOrganizer
         sqlalchemy_session = session
 
-    # name = Faker('name')
     user = users[random.randint(0, 19)]
-    # id = factory.LazyAttribute(lambda obj: str(uuid.uuid4()))
-    # image = HUMAN_IMAGE_URL + str(random.random())
 
 class SocialMediaFactory(factory.alchemy.SQLAlchemyModelFactory):
     class Meta:

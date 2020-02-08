@@ -3,6 +3,7 @@ import bcrypt
 from datetime import date, datetime
 from marshmallow.fields import Field
 import base64
+from slugify import slugify
 
 from api.repositories.exceptions import InvalidCardExpirationDateFmt
 
@@ -79,3 +80,7 @@ def gen_image_filename(uid):
 
 
 MEDIA_DIR = '/home/felix/Desktop/EVE_MEDIA'
+
+
+def generate_slug(url):
+    return slugify(url, to_lower=True)

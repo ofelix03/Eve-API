@@ -29,7 +29,7 @@ class EventView(AuthBaseView):
     def index(self):
         output_query = False
         period_query = False
-        category_id = None
+        category = None
         payload = {}
 
         cursor = self.get_cursor(request)
@@ -40,8 +40,11 @@ class EventView(AuthBaseView):
             if 'period' in request.args:
                 period_query = request.args['period']
 
-            if 'category_id' in request.args:
-                category_id = request.args['category_id']
+            if 'category_slug' in request.args:
+                category_slug = request.args['category_slug']
+                if category_slug:
+                    category = models.EventCategory.find_category_by_slug(category_slug)
+
         if output_query and output_query == 'detail':
             if period_query:
                 if ',' in period_query:  # we have multiple period_query.eg. today,tomorrow,this_week
@@ -49,14 +52,14 @@ class EventView(AuthBaseView):
                     events = {}
                     for period in period_query:
                         date = event_periods.EventPeriods.get_date(date)
-                        period_events = models.Event.get_events(period=date, category_id=category_id, cursor=cursor)
+                        period_events = models.Event.get_events(period=date, category_id=category.id, cursor=cursor)
                         events[period] = serializers.event_schema.dump(period_events, many=True)
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
-                    events = models.Event.get_events(period=date, category_id=category_id, cursor=cursor)
+                    events = models.Event.get_events(period=date, category_id=category.id, cursor=cursor)
                     events = serializers.event_schema.dump(events, many=True)
             else:
-                events = models.Event.get_events(category_id=category_id, cursor=cursor)
+                events = models.Event.get_events(category_id=category.id, cursor=cursor)
                 events = serializers.event_schema.dump(events, many=True)
             payload.update({
                 'events': events,
@@ -99,9 +102,9 @@ class EventView(AuthBaseView):
                     return response(payload)
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
-                    events = models.Event.get_events_summary(category_id=category_id, period=date, cursor=cursor)
+                    events = models.Event.get_events_summary(category_id=category.id, period=date, cursor=cursor)
                     events = serializers.event_summary_schema.dump(events, many=True)
-                    events_count = models.Event.get_events_total(category_id=category_id, period=date)
+                    events_count = models.Event.get_events_total(category_id=category.id, period=date)
                     payload.update({
                         'ok': True,
                         'events': events,
@@ -117,9 +120,9 @@ class EventView(AuthBaseView):
                     return response(payload)
 
             else:
-                events = models.Event.get_events_summary(category_id=category_id, cursor=cursor)
+                events = models.Event.get_events_summary(category_id=category.id, cursor=cursor)
                 events = serializers.event_summary_schema.dump(events, many=True)
-                events_count = models.Event.get_events_total(category_id=category_id)
+                events_count = models.Event.get_events_total(category_id=category.id)
 
                 payload.update({
                     'ok': True,
@@ -1811,6 +1814,8 @@ class EventView(AuthBaseView):
         category = request.args.get('category')
         country = request.args.get('country')
         period = request.args.get('time')
+
+        category = models.EventCategory.find_category_by_slug(category)
 
         search_result = models.Event.search_for_events(query, category=category, country=country, period=period, cursor=cursor)
         search_result_total = models.Event.search_for_events_total(query, category=category, country=country, period=period)

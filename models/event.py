@@ -18,7 +18,8 @@ from api.repositories import exceptions
 
 # from api import exceptions
 from api.models.domain.user_payment_info import DiscountTypes
-from api.utils import TicketDiscountOperator, TicketDiscountType
+from api.utils import TicketDiscountOperator, TicketDiscountType, generate_slug
+
 
 from flask_sqlalchemy import SQLAlchemy
 
@@ -1115,7 +1116,7 @@ class Event(db.Model):
         query = db.session.query(Event).filter(Event.name.ilike('%' + searchterm + '%'))
 
         if category and category != 'all':
-            query = query.filter(Event.category_id == category)
+            query = query.filter(Event.category_id == category.id)
 
         if period and period != 'any':
             period_value = EventPeriods.get_date(period)['value']
@@ -1169,7 +1170,7 @@ class Event(db.Model):
         # @todo use a more advance db.Text search tool
         query = db.session.query(Event).filter(Event.name.ilike('%' + searchterm + '%'))
         if category and category != 'all':
-            query = query.filter(Event.category_id == category)
+            query = query.filter(Event.category_id == category.id)
 
         if period and period != 'any':
             period_value = EventPeriods.get_date(period)['value']
@@ -1376,17 +1377,18 @@ class EventContactInfo(db.Model):
 class EventCategory(db.Model):
     __tablename__ = 'event_categories'
 
-    id = db.Column(db.String, primary_key=True, default=str(uuid.uuid4()))
+    id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String)
-    image = db.Column(db.String, default=" https://source.unsplash.com/featured")
-    creatd_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime)
+    image = db.Column(db.String)
+    slug = db.Column(db.String)
+    created_at = db.Column(db.DateTime)
 
     def __init__(self, name=None, image=None):
         self.id = str(uuid.uuid4())
         self.name = name
         self.image = image
-        self.creatd_at = datetime.now()
+        self.created = datetime.now()
+        self.slug = generate_slug(name)
 
     @classmethod
     def create(cls, name=None, image=None):
@@ -1418,6 +1420,14 @@ class EventCategory(db.Model):
     @classmethod
     def get_categories(cls):
         return db.session.query(EventCategory).all()
+
+    @classmethod
+    def find_category(cls, category_name):
+        return db.session.query(EventCategory).filter(EventCategory.name.ilike('%' + category_name + '%')).first()
+
+    @classmethod
+    def find_category_by_slug(cls, slug):
+        return db.session.query(EventCategory).filter(EventCategory.slug.ilike('%' + slug + '%')).first()
 
     @classmethod
     def find_category_by_searchterm(cls, search_term):
@@ -3407,11 +3417,13 @@ class BrandCategory(db.Model):
 
     id = db.Column(db.String, primary_key=True)
     name = db.Column(db.String)
+    slug = db.Column(db.String)
     brands = relationship('Brand', backref='brand_categories')
 
     def __init__(self, name=None):
         self.id = str(uuid.uuid4())
         self.name = name
+        self.slug = generate_slug(name)
 
     @staticmethod
     def has_category(category_id):
