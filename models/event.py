@@ -704,8 +704,8 @@ class Event(db.Model):
         EventBookmark.delete_bookmark(self, user)
 
     @staticmethod
-    def get_events_total(period=None, category_id=None, creator_id=None):
-        query = db.session.query(Event)
+    def get_events_total(period=None, category_id=None, creator_id=None, is_published=True):
+        query = db.session.query(Event).filter(Event.is_published==is_published)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -740,8 +740,9 @@ class Event(db.Model):
         return query.count()
 
     @staticmethod
-    def get_events(period=None, category_id=None, creator_id=None, cursor=None):
-        query = db.session.query(Event).options(
+    def get_events(period=None, category_id=None, creator_id=None, cursor=None, is_published=True):
+        query = db.session.query(Event).filter(Event.is_published==is_published)\
+            .options(
             joinedload(Event.recommendations),
             joinedload(Event.organizers),
             joinedload(Event.user),
@@ -803,9 +804,9 @@ class Event(db.Model):
         return events
 
     @staticmethod
-    def get_events_summary(category_id=None, period=None, cursor=None):
+    def get_events_summary(category_id=None, period=None, cursor=None, is_published=True):
 
-        query = db.session.query(Event)
+        query = db.session.query(Event).filter(Event.is_published==is_published)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -1111,9 +1112,9 @@ class Event(db.Model):
         return reviews
 
     @staticmethod
-    def search_for_events(searchterm=None, category=None, period=None, country=None, cursor=None):
+    def search_for_events(searchterm=None, category=None, period=None, country=None, cursor=None, is_published=True):
         # @todo use a more advance db.Text search tool
-        query = db.session.query(Event).filter(Event.name.ilike('%' + searchterm + '%'))
+        query = db.session.query(Event).filter(Event.is_published==is_published).filter(Event.name.ilike('%' + searchterm + '%'))
 
         if category and category != 'all':
             query = query.filter(Event.category_id == category.id)
