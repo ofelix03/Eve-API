@@ -372,9 +372,15 @@ class User(db.Model):
             .count()
         return events_count
 
-    def get_created_events(self, cursor):
+    def get_created_events(self, cursor, is_published=True, is_not_published=True):
+
         query = db.session.query(Event) \
             .filter(Event.user_id == self.id)
+
+        if is_published and not is_not_published:
+            query = query.filter(Event.is_published==True)
+        elif not is_published and is_not_published:
+            query = query.filter(Event.is_published==False)
 
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
@@ -393,10 +399,15 @@ class User(db.Model):
 
         return events
 
-    def get_created_events_count(self):
-        return db.session.query(Event) \
-            .filter(Event.user_id == self.id) \
-            .count()
+    def get_created_events_count(self, is_published=True, is_not_published=True):
+        query = db.session.query(Event) \
+            .filter(Event.user_id == self.id)
+
+        if is_published and not is_not_published:
+            query = query.filter(Event.is_published==True)
+        elif is_not_published and not is_published:
+            query = query.filter(Event.is_published==False)
+        return query.count()
 
     def get_bookmarked_events(self, cursor):
         query = db.session.query(EventBookmark) \
@@ -704,8 +715,11 @@ class Event(db.Model):
         EventBookmark.delete_bookmark(self, user)
 
     @staticmethod
-    def get_events_total(period=None, category_id=None, creator_id=None, is_published=True):
-        query = db.session.query(Event).filter(Event.is_published==is_published)
+    def get_events_total(period=None, category=None, creator_id=None, is_published=True):
+        query = db.session.query(Event)
+
+        if is_published:
+            query= query.filter(Event.is_published==True)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -734,15 +748,14 @@ class Event(db.Model):
         if creator_id:
             query = query.filter(Event.user_id == creator_id)
 
-        if category_id:
-            query = query.filter(Event.category_id == category_id)
+        if category:
+            query = query.filter(Event.category_id == category.id)
 
         return query.count()
 
     @staticmethod
     def get_events(period=None, category_id=None, creator_id=None, cursor=None, is_published=True):
-        query = db.session.query(Event).filter(Event.is_published==is_published)\
-            .options(
+        query = db.session.query(Event).options(
             joinedload(Event.recommendations),
             joinedload(Event.organizers),
             joinedload(Event.user),
@@ -752,6 +765,9 @@ class Event(db.Model):
             joinedload(Event.speakers),
             joinedload(Event.media),
         )
+
+        if is_published:
+            query = query.filter(Event.is_published==True)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -804,9 +820,12 @@ class Event(db.Model):
         return events
 
     @staticmethod
-    def get_events_summary(category_id=None, period=None, cursor=None, is_published=True):
+    def get_events_summary(category=None, period=None, cursor=None, is_published=True):
 
-        query = db.session.query(Event).filter(Event.is_published==is_published)
+        query = db.session.query(Event)
+
+        if is_published:
+            query = query.filter(Event.is_published==True)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -829,8 +848,8 @@ class Event(db.Model):
                 [start_date, end_date] = period_value
                 query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
 
-        if category_id:
-            query = query.filter(Event.category_id == category_id)
+        if category:
+            query = query.filter(Event.category_id == category.id)
         
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)

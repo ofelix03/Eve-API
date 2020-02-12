@@ -102,9 +102,9 @@ class EventView(AuthBaseView):
                     return response(payload)
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
-                    events = models.Event.get_events_summary(category_id=category.id, period=date, cursor=cursor)
+                    events = models.Event.get_events_summary(category=category, period=date, cursor=cursor)
                     events = serializers.event_summary_schema.dump(events, many=True)
-                    events_count = models.Event.get_events_total(category_id=category.id, period=date)
+                    events_count = models.Event.get_events_total(category=category, period=date)
                     payload.update({
                         'ok': True,
                         'events': events,
@@ -120,9 +120,9 @@ class EventView(AuthBaseView):
                     return response(payload)
 
             else:
-                events = models.Event.get_events_summary(category_id=category.id, cursor=cursor)
+                events = models.Event.get_events_summary(category=category, cursor=cursor)
                 events = serializers.event_summary_schema.dump(events, many=True)
-                events_count = models.Event.get_events_total(category_id=category.id)
+                events_count = models.Event.get_events_total(category=category)
 
                 payload.update({
                     'ok': True,

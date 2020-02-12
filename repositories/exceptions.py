@@ -180,3 +180,15 @@ class InsufficientTicketsAvailable(BaseException):
 
 class MediaNotFound(Exception):
     pass
+
+
+class PasswordMismatch(Exception):
+    pass
+
+
+class PasswordConfirmationMismatch(Exception):
+    pass
+
+
+class UserNotFound(Exception):
+    pass

@@ -19,7 +19,6 @@ class MeView(AuthBaseView):
 
     @route('/created-events', methods=['GET'])
     def get_created_events(self):
-
         auth_user = self.get_auth_user()
         events = auth_user.get_created_events()
         return response({

@@ -155,7 +155,7 @@ class UserView(AuthBaseView):
                 "ok": False,
                 "errors": e.messages
             }, 400)
-        except exceptions.user.PasswordConfirmationMismatch:
+        except exceptions.PasswordConfirmationMismatch:
             return response({
                 'ok': False,
                 'code': 'USER_PASSWORD_CONFIRMATION_MISMATCH'
@@ -170,7 +170,7 @@ class UserView(AuthBaseView):
         try:
             user = User.get_user(user_id)
             return response(serializers.user_summary_schema.dump(user))
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             return response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
@@ -202,7 +202,7 @@ class UserView(AuthBaseView):
             else:
                 user = User.get_user_full(user_id)
             return response(serializers.user_full_schema.dump(user))
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             return response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND',
@@ -211,15 +211,23 @@ class UserView(AuthBaseView):
     @route('/me/created-events', methods=['GET'])
     @route('/<string:user_id>/created-events', methods=['GET'])
     def get_created_events(self, user_id=None):
-
         try:
             cursor = self.get_cursor(request)
             if not user_id:
                 auth_user = self.get_auth_user()
             else:
                 auth_user = User.get_user(user_id)
-            events = auth_user.get_created_events(cursor)
-            events_total = auth_user.get_created_events_count()
+
+            is_published = True if 'is_published' in request.args else False
+            is_not_published = True if 'not_published' in request.args else False
+
+            print("user##", auth_user)
+
+            events = auth_user.get_created_events(cursor, is_published, is_not_published)
+            events_total = auth_user.get_created_events_count(is_published, is_not_published)
+
+            print("events##", events)
+
             return response({
                 "ok": True,
                 "events": serializers.event_summary_schema.dump(events, many=True),
@@ -232,7 +240,7 @@ class UserView(AuthBaseView):
                     }
                 }
             })
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             return response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
@@ -261,7 +269,7 @@ class UserView(AuthBaseView):
                     }
                 }
             })
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             return response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
@@ -312,7 +320,7 @@ class UserView(AuthBaseView):
                 'followings': serializers.user_summary_schema.dump(followings, many=True),
                 'followings_count': followings_count
             })
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
@@ -351,7 +359,7 @@ class UserView(AuthBaseView):
                 "ok": False,
                 "message": "already following user"
             }, 400)
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             return response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
@@ -365,7 +373,7 @@ class UserView(AuthBaseView):
             user = User.get_user(user_id)
             user.remove_follower(auth_user)
             return response(serializers.user_summary_schema.dump(auth_user))
-        except exceptions.user.UserNotFound:
+        except exceptions.UserNotFound:
             return response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
