@@ -21,7 +21,8 @@ class AuthBaseView(BaseView):
     @staticmethod
     def before_request(name, *args, **kwargs):
         try:
-            Authenticator.get_instance().authenticate(request)
+            if name != 'post': # user is signing up, no need to authenticate
+                Authenticator.get_instance().authenticate(request)
         except UserAuthFail:
             if name not in UNGUARDED_ENDPOINTS:
                 return response({

@@ -503,9 +503,9 @@ class EventView(AuthBaseView):
                 event.update()
 
                 models.Notification.create(notification_type=models.Notifications.EVENT_RECOMMENDED.value,
-                                       recipient=event_recommendation.recommended_to,
-                                       actor=recommended_by,
-                                       event=event)
+                                           recipient=event_recommendation.recommended_to,
+                                           actor=recommended_by,
+                                           event=event)
             # @todo send an email if user has opted for email notification
 
             return response(serializers.event_recommendation_schema.dump(event.get_event_recommendations(), many=True))

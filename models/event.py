@@ -23,6 +23,9 @@ from api.utils import TicketDiscountOperator, TicketDiscountType, generate_slug
 
 from flask_sqlalchemy import SQLAlchemy
 
+
+DEFAULT_IMAGE = "https://res.cloudinary.com/ofelix03/image/upload/v1585692212/asssets/no-image.jpg"
+
 CASCADE = 'CASCADE'
 
 db = SQLAlchemy()
@@ -189,6 +192,8 @@ class User(db.Model):
 
         if image:
             self.image = image
+        else:
+            self.image = DEFAULT_IMAGE
 
         if name:
             self.name = name
@@ -217,6 +222,10 @@ class User(db.Model):
     @classmethod
     def create(cls, name=None, image=None, email=None, password=None, country=None, country_code=None, gender=None,
                phone_number=None, is_ghost=False):
+
+        if cls.has_email(email):
+            raise exceptions.UserAlreadyExists()
+
         user = cls(name=name, image=image, email=email, password=password, country=country, country_code=country_code,
                    gender=gender, phone_number=phone_number, is_ghost=is_ghost)
         db.session.add(user)
@@ -576,7 +585,6 @@ class UserLoginHistory(db.Model):
 
         if user:
             self.user = user
-
 
 
 class Event(db.Model):
@@ -3878,15 +3886,22 @@ class Notification(db.Model):
             .filter(Notification.is_read == False) \
             .filter(Notification.recipient_id == user.id)
 
-        if cursor.after:
-            query = query.filter(func.extract('EPOCH', Notification.created_at) < cursor.get_after_as_float())
-        elif cursor.before:
-            query = query.filter(func.extract('EPOCH', Notification.created_at) > cursor.get_before_as_float())
+        if cursor and cursor.after:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
+
+        if cursor and cursor.before:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
         notifications = query.order_by(Notification.created_at.desc()).limit(cursor.limit).all()
+
         if notifications:
             cursor.set_before(notifications[0].created_at)
             cursor.set_after(notifications[-1].created_at)
+        else:
+            cursor.set_before(None)
+            cursor.set_after(None)
 
         return notifications
 
@@ -3894,10 +3909,13 @@ class Notification(db.Model):
     def get_all_notifications(user, cursor):
         query = db.session.query(Notification).filter(Notification.recipient_id == user.id)
 
-        if cursor.after:
-            query = query.filter(func.extract('EPOCH', Notification.created_at) < cursor.get_after_as_float())
-        elif cursor.before:
-            query = query.filter(func.extract('EPOCH', Notification.created_at) > cursor.get_before_as_float())
+        if cursor and cursor.after:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
+
+        if cursor and cursor.before:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
         notifications = query.order_by(Notification.created_at.desc()).limit(cursor.limit).all()
         if notifications:
@@ -3915,10 +3933,13 @@ class Notification(db.Model):
             .filter(Notification.recipient_id == user.id) \
             .filter(Notification.is_read == True)
 
-        if cursor.after:
-            query = query.filter(func.extract('EPOCH', Notification.created_at) < cursor.get_after_as_float())
-        elif cursor.before:
-            query = query.filter(func.extract('EPOCH', Notification.created_at) > cursor.get_before_as_float())
+        if cursor and cursor.after:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
+
+        if cursor and cursor.before:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
         notifications = query.order_by(Notification.created_at.desc()).limit(cursor.limit).all()
         if notifications:
@@ -3949,3 +3970,15 @@ class Notification(db.Model):
             .filter(Notification.recipient_id == user.id) \
             .filter(Notification.is_read == True) \
             .count()
+
+    def mark_as_read(self):
+        self.is_read = True
+        db.session.commit()
+
+    @staticmethod
+    def get_notification(notification_id):
+        return db.session.query(Notification).filter(Notification.id==notification_id).first()
+
+    @staticmethod
+    def get_notifications(notification_ids):
+        return db.session.query(Notification).filter(Notification.id.in_(notification_ids)).all()

@@ -408,6 +408,7 @@ class TicketReservationSchema(Schema):
 
 
 class NotificationSchema(Schema):
+    id = fields.String(required=True)
     type = fields.String(attribute='notification_type')
     is_read = fields.Boolean()
     created_at = fields.DateTime()

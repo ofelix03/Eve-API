@@ -63,32 +63,35 @@ class UserView(AuthBaseView):
         try:
             data = serializers.create_user_schema.dump(data)
             password = utils.hash_password(data['password'])
+
             name = data['name']
             email = data['email']
             gender = data['gender']
             phone_number = data['phone_number']
+            country_id = data['country_id']
 
-            print("password##", password)
-
-            if not Country.has_country(data['country_id']):
+            if not Country.has_country(country_id):
                 return response({
+                    "ok": False,
                     "errors": {
                         "message": "Country not found"
                     }
-                }, 400)
-            country = Country.get_country(data['country_id'])
+                }, 401)
+            country = Country.get_country(country_id)
             user = User.create(name=name, email=email, password=password,country=country, gender=gender,phone_number=phone_number)
             return response(serializers.user_schema.dump(user))
         except exceptions.UserAlreadyExists:
             return response({
+                "ok": False,
                 "errors": {
-                    "message": "User already exists"
+                    "message": "A user already exists with the same email"
                 }
-            }, 400)
+            }, 401)
         except ValidationError as e:
             return response({
+                "ok": False,
                 "errors": e.messages
-            }, 400)
+            }, 401)
 
     @route('/logout', methods=['POST'])
     def logout_user(self):
@@ -105,8 +108,9 @@ class UserView(AuthBaseView):
 
             if not User.has_email(email):
                 return response({
+                    "ok": False,
                     "errors": {
-                        "message": "Authentication failed"
+                        "message": "Login failed. Check email and password"
                     }
                 }, 401)
 
@@ -114,8 +118,9 @@ class UserView(AuthBaseView):
 
             if not utils.check_password(password, user.password):
                 return response({
+                    "ok": False,
                     "errors": {
-                        "message": "Authentication failed"
+                        "message": "Login failed. Check email and password"
                     }
                 }, 401)
 
@@ -128,15 +133,17 @@ class UserView(AuthBaseView):
                 session_token = user.login_session[0].session_token
 
             return response({
+                "ok": True,
                 "session_token": session_token,
                 "session_user": session_user
             })
-        except ValidationError as e:
+        except ValidationError:
             return response({
+                "ok": False,
                 "errors": {
-                    "message": e.messages
+                    "message": "Login failed. Check email and password"
                 }
-            }, 400)
+            }, 401)
 
     @route('/me/change-password', methods=["PUT"])
     def change_user_password(self):
@@ -402,6 +409,11 @@ class UserView(AuthBaseView):
         else:
             notifications = Notification.get_all_notifications(auth_user)
 
+        print("noworld##",  {
+                    "before": cursor.before,
+                    "after": cursor.after,
+                    "limit": cursor.limit
+                })
         return response({
             "ok": True,
             "notifications": serializers.notification_schema.dump(notifications, many=True),
@@ -415,6 +427,24 @@ class UserView(AuthBaseView):
                     "limit": cursor.limit
                 }
             }
+        })
+
+    @route('/notifications/unread_count', methods=['GET'])
+    def get_user_notifcation_counts(self):
+        auth_user = Authenticator.get_instance().get_auth_user()
+
+        return response({
+            "ok": True,
+            "unread_notifications_count": Notification.get_total_unread_notifications(auth_user)
+        })
+
+    @route('/notifications/mark_as_read', methods=['PUT'])
+    def mark_notifications_as_read(self):
+        notification_ids = request.get_json()['notification_ids']
+        for notification in Notification.get_notifications(notification_ids):
+            notification.mark_as_read()
+        return response({
+            "ok": True
         })
 
     @route('/me/payment-details', methods=['POST'])
