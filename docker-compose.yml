@@ -1,0 +1,25 @@
+version: '3'
+services:
+  api:
+    image: eve-api
+    container_name: eve-api
+#    command: ["/usr/bin/python", "-m", "./seeders"]
+    ports:
+      - "8000:8000"
+      - "8050:8050"
+    restart: always
+    depends_on:
+      - db
+    volumes:
+      - ./wsgi.log:/usr/src/api/api/wsgi.log
+
+  db:
+    image: postgres
+    container_name: eve-db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD:
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - 5435:5432
