@@ -16,7 +16,6 @@ class BrandView(AuthBaseView):
     def index(self):
         try:
             cursor = self.get_cursor(request)
-            print("cursor.after##", cursor.after)
             if 'category_id' in request.args:
                 category_id = request.args['category_id']
             else:

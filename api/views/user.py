@@ -1,6 +1,6 @@
 from . import *
 from marshmallow import ValidationError
-from api.views.auth_base import AuthBaseView
+from api.views.auth_base import AuthBaseView, BaseView
 from api.repositories import exceptions
 from api.auth.authenticator import Authenticator, data_encryptor
 from api.models.event import User, UserLoginSession, Country, Notification
@@ -395,6 +395,23 @@ class UserView(AuthBaseView):
     @route('/notifications', methods=['GET'])
     def get_user_notifications(self):
         auth_user = Authenticator.get_instance().get_auth_user()
+
+        if not auth_user:
+            return response({
+                "ok": True,
+                "notifications": 0,
+                "all_notifications_count": 0,
+                "unread_notifications_count": 0,
+                "read_notifications_count": 0,
+                "metadata": {
+                    "cursor": {
+                        "before": None,
+                        "after": None,
+                        "limit": None
+                    }
+                }
+            })
+
         cursor = self.get_cursor(request)
 
         if 't' in request.args:
@@ -409,11 +426,7 @@ class UserView(AuthBaseView):
         else:
             notifications = Notification.get_all_notifications(auth_user)
 
-        print("noworld##",  {
-                    "before": cursor.before,
-                    "after": cursor.after,
-                    "limit": cursor.limit
-                })
+
         return response({
             "ok": True,
             "notifications": serializers.notification_schema.dump(notifications, many=True),
@@ -432,10 +445,10 @@ class UserView(AuthBaseView):
     @route('/notifications/unread_count', methods=['GET'])
     def get_user_notifcation_counts(self):
         auth_user = Authenticator.get_instance().get_auth_user()
-
         return response({
             "ok": True,
             "unread_notifications_count": Notification.get_total_unread_notifications(auth_user)
+            if auth_user else 0
         })
 
     @route('/notifications/mark_as_read', methods=['PUT'])

@@ -36,7 +36,7 @@ class Authenticator:
 				raise UserAuthFail()
 			self.set_auth_user(user)
 			return True
-		raise UserAuthFail()
+		# raise UserAuthFail()
 
 	def set_auth_user(self, auth_user):
 		self.auth_user = auth_user

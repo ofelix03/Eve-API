@@ -12,6 +12,12 @@ AUTH_USER_ID = '097d05c3-de53-4de4-9efa-ef71cd64cb11'
 
 GOOGLE_CLOUD_API_KEY = 'AIzaSyCmBIPWntZIbDdKfEf7IZ_u3cjY79Eh2MU'
 
+CLOUDINARY_URL = "https://res.cloudinary.com/ofelix03/image/upload/v1586382968/"
+CLOUDINARY_ASSETS_URL = CLOUDINARY_URL + 'asssets/'
+
+
+FEMALE_PROFILE_IMAGE = CLOUDINARY_ASSETS_URL + 'female-profile.svg'
+MALE_PROFILE_IMAGE = CLOUDINARY_ASSETS_URL + 'male-profile.svg'
 
 class TicketDiscountOperator(object):
     EQUAL_TO = '='

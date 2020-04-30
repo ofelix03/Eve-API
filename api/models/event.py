@@ -192,8 +192,10 @@ class User(db.Model):
 
         if image:
             self.image = image
-        else:
-            self.image = DEFAULT_IMAGE
+        elif gender in ('male', 'm'):
+            self.image = utils.MALE_PROFILE_IMAGE
+        elif gender in ('female', 'f'):
+            self.image = utils.FEMALE_PROFILE_IMAGE
 
         if name:
             self.name = name

@@ -15,9 +15,6 @@ UNGUARDED_ENDPOINTS = USERS_UNGUARDED_ENDPOINTS + BRANDS_UNGUARDED_ENDPOINTS + E
 
 class AuthBaseView(BaseView):
 
-    def get_auth_user(self):
-        return Authenticator.get_instance().get_auth_user()
-
     @staticmethod
     def before_request(name, *args, **kwargs):
         try:

@@ -1,9 +1,13 @@
 from . import *
 from api.models.pagination_cursor import PaginationCursor, BadCursorQuery
+from api.auth.authenticator import Authenticator
 
 
 class BaseView(FlaskView):
     trailing_slash = True
+
+    def get_auth_user(self):
+        return Authenticator.get_instance().get_auth_user()
 
     def after_request(self, name, response):
         return response
