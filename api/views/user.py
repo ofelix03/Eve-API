@@ -21,39 +21,42 @@ class UserView(AuthBaseView):
 
     @route('/me/update-profile', methods=['PUT'])
     def update_user_profile(self):
-        auth_user = Authenticator.get_instance().get_auth_user()
+        try:
+            auth_user = Authenticator.get_instance().get_auth_user()
 
-        data = request.get_json()
-        profile = User.get_user(auth_user.id)
-        print("updating user", profile)
+            data = request.get_json()
+            profile = User.get_user(auth_user.id)
+            print("updating user", profile)
 
-        if 'name' in data and data['name'] != profile.name:
-            auth_user.name = data['name']
+            if 'name' in data and data['name'] != profile.name:
+                auth_user.name = data['name']
 
-        if 'email' in data and data['email'] != profile.email:
-            profile.email = data['email']
+            if 'email' in data and data['email'] != profile.email:
+                profile.email = data['email']
 
-        if 'phone_number' in data and data['phone_number'] != profile.phone_number:
-            profile.phone_number = data['phone_number']
+            if 'phone_number' in data and data['phone_number'] != profile.phone_number:
+                profile.phone_number = data['phone_number']
 
-        if 'country_id' in data and data['country_id'] != profile.country_id:
-            country_id = data['country_id']
-            if not Country.has_country(country_id):
-                return response({
-                    "errors": {
-                        "message": "Country not found"
-                    }
-                }, 400)
-            profile.country = Country.get_country(country_id)
+            if 'country_id' in data and data['country_id'] != profile.country_id:
+                country_id = data['country_id']
+                if not Country.has_country(country_id):
+                    return response({
+                        "errors": {
+                            "message": "Country not found"
+                        }
+                    }, 400)
+                profile.country = Country.get_country(country_id)
 
-        if 'country_code' in data:
-            pass
+            if 'country_code' in data:
+                pass
 
-        if 'image' in data:
-            profile.image = data['image']
+            if 'image' in data:
+                profile.image = data['image']
 
-        profile.update()
-        return response(serializers.user_schema.dump(profile))
+            profile.update()
+            return response(serializers.user_schema.dump(profile))
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     def delete(self, user_id=None):
         pass
@@ -78,7 +81,8 @@ class UserView(AuthBaseView):
                     }
                 }, 401)
             country = Country.get_country(country_id)
-            user = User.create(name=name, email=email, password=password,country=country, gender=gender,phone_number=phone_number)
+            user = User.create(name=name, email=email, password=password, country=country, gender=gender,
+                               phone_number=phone_number)
             return response(serializers.user_schema.dump(user))
         except exceptions.UserAlreadyExists:
             return response({
@@ -95,9 +99,12 @@ class UserView(AuthBaseView):
 
     @route('/logout', methods=['POST'])
     def logout_user(self):
-        user = Authenticator.get_instance().get_auth_user()
-        user.remove_login_session()
-        return response("")
+        try:
+            user = Authenticator.get_instance().get_auth_user()
+            user.remove_login_session()
+            return response("")
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/login', methods=['POST'])
     def login_user(self):
@@ -167,6 +174,8 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': 'USER_PASSWORD_CONFIRMATION_MISMATCH'
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/me/new-password-request', methods=['GET'])
     def reset_password_send_link_notification(self):
@@ -209,6 +218,8 @@ class UserView(AuthBaseView):
             else:
                 user = User.get_user_full(user_id)
             return response(serializers.user_full_schema.dump(user))
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
         except exceptions.UserNotFound:
             return response({
                 'ok': False,
@@ -247,6 +258,8 @@ class UserView(AuthBaseView):
                     }
                 }
             })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
         except exceptions.UserNotFound:
             return response({
                 'ok': False,
@@ -276,6 +289,8 @@ class UserView(AuthBaseView):
                     }
                 }
             })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
         except exceptions.UserNotFound:
             return response({
                 'ok': False,
@@ -310,6 +325,8 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
             }, 404)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/me/followings', methods=['GET'])
     @route('/<string:user_id>/followings', methods=['GET'])
@@ -327,11 +344,13 @@ class UserView(AuthBaseView):
                 'followings': serializers.user_summary_schema.dump(followings, many=True),
                 'followings_count': followings_count
             })
-        except exceptions.UserNotFound:
+        except exceptions.NotAuthUser:
             response({
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/me/followers', methods=['GET'])
     @route('/<string:user_id>/followers', methods=['GET'])
@@ -361,6 +380,7 @@ class UserView(AuthBaseView):
             auth_user = Authenticator.get_instance().get_auth_user()
             user = User.get_user(user_id)
             user.add_follower(auth_user)
+            return response(serializers.user_summary_schema.dump(auth_user))
         except exceptions.AlreadyFollowingUser:
             return response({
                 "ok": False,
@@ -371,7 +391,8 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
             }, 400)
-        return response(serializers.user_summary_schema.dump(auth_user))
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/<string:user_id>/unfollow', methods=['DELETE'])
     def unfollow_user(self, user_id):
@@ -385,80 +406,93 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/me/payment-details', methods=['GET'])
     def get_my_payment_details(self):
-        auth_user = self.get_auth_user()
-        payment_details = auth_user.get_payment_details()
-        return response(serializers.user_payment_details_schema.dump(payment_details, many=True))
+        try:
+            auth_user = self.get_auth_user()
+            payment_details = auth_user.get_payment_details()
+            return response(serializers.user_payment_details_schema.dump(payment_details, many=True))
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/notifications', methods=['GET'])
     def get_user_notifications(self):
-        auth_user = Authenticator.get_instance().get_auth_user()
+        try:
+            auth_user = Authenticator.get_instance().get_auth_user()
 
-        if not auth_user:
+            # if not auth_user:
+            #     return response({
+            #         "ok": True,
+            #         "notifications": 0,
+            #         "all_notifications_count": 0,
+            #         "unread_notifications_count": 0,
+            #         "read_notifications_count": 0,
+            #         "metadata": {
+            #             "cursor": {
+            #                 "before": None,
+            #                 "after": None,
+            #                 "limit": None
+            #             }
+            #         }
+            #     })
+
+            cursor = self.get_cursor(request)
+
+            if 't' in request.args:
+                if request.args['t'] in ['read', 'unread', 'all']:
+                    type = request.args['t']
+                    if type == 'read':
+                        notifications = Notification.get_read_notifications(auth_user, cursor)
+                    elif type == 'unread':
+                        notifications = Notification.get_unread_notifications(auth_user, cursor)
+                    elif type == 'all':
+                        notifications = Notification.get_all_notifications(auth_user, cursor)
+            else:
+                notifications = Notification.get_all_notifications(auth_user)
+
             return response({
                 "ok": True,
-                "notifications": 0,
-                "all_notifications_count": 0,
-                "unread_notifications_count": 0,
-                "read_notifications_count": 0,
+                "notifications": serializers.notification_schema.dump(notifications, many=True),
+                "all_notifications_count": Notification.get_total_notifications(auth_user),
+                "unread_notifications_count": Notification.get_total_unread_notifications(auth_user),
+                "read_notifications_count": Notification.get_total_read_notifications(auth_user),
                 "metadata": {
                     "cursor": {
-                        "before": None,
-                        "after": None,
-                        "limit": None
+                        "before": cursor.before,
+                        "after": cursor.after,
+                        "limit": cursor.limit
                     }
                 }
             })
-
-        cursor = self.get_cursor(request)
-
-        if 't' in request.args:
-            if request.args['t'] in ['read', 'unread', 'all']:
-                type = request.args['t']
-                if type == 'read':
-                    notifications = Notification.get_read_notifications(auth_user, cursor)
-                elif type == 'unread':
-                    notifications = Notification.get_unread_notifications(auth_user, cursor)
-                elif type == 'all':
-                    notifications = Notification.get_all_notifications(auth_user, cursor)
-        else:
-            notifications = Notification.get_all_notifications(auth_user)
-
-
-        return response({
-            "ok": True,
-            "notifications": serializers.notification_schema.dump(notifications, many=True),
-            "all_notifications_count": Notification.get_total_notifications(auth_user),
-            "unread_notifications_count": Notification.get_total_unread_notifications(auth_user),
-            "read_notifications_count": Notification.get_total_read_notifications(auth_user),
-            "metadata": {
-                "cursor": {
-                    "before": cursor.before,
-                    "after": cursor.after,
-                    "limit": cursor.limit
-                }
-            }
-        })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/notifications/unread_count', methods=['GET'])
     def get_user_notifcation_counts(self):
-        auth_user = Authenticator.get_instance().get_auth_user()
-        return response({
-            "ok": True,
-            "unread_notifications_count": Notification.get_total_unread_notifications(auth_user)
-            if auth_user else 0
-        })
+        try:
+            auth_user = Authenticator.get_instance().get_auth_user()
+            return response({
+                "ok": True,
+                "unread_notifications_count": Notification.get_total_unread_notifications(auth_user)
+                if auth_user else 0
+            })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/notifications/mark_as_read', methods=['PUT'])
     def mark_notifications_as_read(self):
-        notification_ids = request.get_json()['notification_ids']
-        for notification in Notification.get_notifications(notification_ids):
-            notification.mark_as_read()
-        return response({
-            "ok": True
-        })
+        try:
+            notification_ids = request.get_json()['notification_ids']
+            for notification in Notification.get_notifications(notification_ids):
+                notification.mark_as_read()
+            return response({
+                "ok": True
+            })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/me/payment-details', methods=['POST'])
     def add_payment_details(self):
@@ -495,7 +529,8 @@ class UserView(AuthBaseView):
                     payment_info.update_card_payment(card_info)
             elif PaymentTypes.MOBILE_MONEY == payment_type:
                 serializers.mobile_payment_info_schema.load(data)
-                mobile_info = MobilePaymentInfo(mobile_network=data['mobile_network'], mobile_number=data['mobile_number'])
+                mobile_info = MobilePaymentInfo(mobile_network=data['mobile_network'],
+                                                mobile_number=data['mobile_number'])
                 if not auth_user.has_mobile_money_payment():
                     auth_user.add_mobile_payment_info(mobile_info)
                 elif auth_user.has_mobile_money_payment():
@@ -518,6 +553,8 @@ class UserView(AuthBaseView):
                 'code': 'INVALID_CARD_EXPIRATON_DATE_FORMAT',
                 'message': 'Invalid card expiration date format. Require a format of [YY/MM]'
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/me/payment-accounts/<string:account_id>', methods=['DELETE'])
     def remove_payment_account(self, account_id):
@@ -532,3 +569,5 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': "PAYMENT_ACCOUNT_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()

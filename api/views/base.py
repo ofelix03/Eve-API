@@ -1,6 +1,7 @@
 from . import *
 from api.models.pagination_cursor import PaginationCursor, BadCursorQuery
 from api.auth.authenticator import Authenticator
+from api.exceptions import UserNotFound
 
 
 class BaseView(FlaskView):

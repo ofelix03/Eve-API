@@ -51,7 +51,7 @@ class UserSummarySchema(Schema):
     email = fields.String(required=True)
     image = fields.String(required=True, default='https://source.unsplash.com/1600x900/?human')
     is_ghost = fields.Boolean()
-    is_follower = fields.Function(lambda user: False if not Authenticator.get_instance().get_auth_user() else Authenticator.get_instance().get_auth_user().am_following_user(user))
+    is_follower = fields.Function(lambda user: False if not Authenticator.get_instance().get_auth_user_without_auth_check() else Authenticator.get_instance().get_auth_user_without_auth_check().am_following_user(user))
 
 
 class ChangeUserPasswordSerliazer(Schema):

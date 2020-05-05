@@ -4,6 +4,8 @@ class BaseException(Exception):
         self.message = message
 
 
+class NotAuthUser(Exception):
+    pass
 
 class EventNotFound(BaseException):
     pass

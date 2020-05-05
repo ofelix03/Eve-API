@@ -28,3 +28,9 @@ class AuthBaseView(BaseView):
                         "message": "Authentication failed"
                     }
                 }, 401)
+
+    def not_auth_response(self):
+        return response({
+            "ok": True,
+            "code": "USER_NOT_AUTHENTICATED"
+        }, 401)

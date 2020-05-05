@@ -413,7 +413,7 @@ class EventView(AuthBaseView):
                 messages = []
                 for ticket_type in ticket_types:
                     message = "Only {available_qty} {ticket_type_name} are remaining".format(
-                            available_qty=ticket_type.get_available_qty(), ticket_type_name=ticket_type.name)
+                        available_qty=ticket_type.get_available_qty(), ticket_type_name=ticket_type.name)
                     messages.append(message)
                 return response({
                     "ok": False,
@@ -435,6 +435,8 @@ class EventView(AuthBaseView):
                 'ok': False,
                 'code': 'EVENT_NOT_FOUND'
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('/<string:event_id>/remove-reserved-tickets', methods=['DELETE'])
     def remove_ticket_reservations(self, event_id):
@@ -446,7 +448,8 @@ class EventView(AuthBaseView):
             return response({
                 "ok": True
             })
-
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
         except exceptions.EventNotFound:
             return response({
                 "ok": False,
@@ -525,6 +528,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "USER_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/speakers', methods=['GET'])
     def get_speakers(self, event_id):
@@ -691,6 +696,11 @@ class EventView(AuthBaseView):
                                        recipient=event.user,
                                        actor=auth_user,
                                        event=event)
+            return response({
+                "ok": True,
+                "event_id": event_id,
+                "is_bookmarked": event.is_bookmarked_by(auth_user)
+            }, 201)
         except exceptions.EventNotFound:
             return response({
                 "ok":False,
@@ -702,17 +712,13 @@ class EventView(AuthBaseView):
                                        recipient=event.user,
                                        actor=auth_user,
                                        event=event)
-
-        return response({
-            "ok": True,
-            "event_id": event_id,
-            "is_bookmarked": event.is_bookmarked_by(auth_user)
-        }, 201)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/delete-bookmark', methods=['DELETE'])
     def delete_bookmark(self, event_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             event.bookmark(auth_user)
             models.Notification.create(notification_type=models.Notifications.EVENT_UNBOOKMARKED.value,
@@ -727,83 +733,29 @@ class EventView(AuthBaseView):
                 "ok": True,
                 "code": "EVENT_NOT_BOOKMARKED"
             }
+            return response(bad_request)
         except exceptions.EventNotFound:
             bad_request = {
                 "ok": True,
                 "code": "EVENT_NOT_FOUND"
             }
-        if bad_request:
             return response(bad_request)
-        return response(None)
+
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     def post(self):
-        data = request.get_json(0)
+        try:
+            data = request.get_json(0)
 
-        if not data:
-            return response({
-                "ok": True,
-                "code": "BAD_REQUEST"
-            }, 400)
-
-        event = Event()
-        event.user = Authenticator.get_instance().get_auth_user()
-        if 'name' in data:
-            event.name = data.get('name')
-
-        if 'venue' in data:
-            event.venue = data.get('venue')
-
-        if 'start_datetime' in data:
-            event.start_datetime = data.get('start_datetime')
-
-        if 'end_datetime' in data:
-            event.end_datetime = data.get('end_datetime')
-
-        if 'description' in data:
-            event.description = data.get('description')
-
-        if 'category_id' in data:
-            category = models.EventCategory.get_category(data['category_id'])
-            if category:
-                event.category = category
-
-        if 'organizers' in data:
-            for organizer in data['organizers']:
-                if 'id' in organizer:
-                    user = models.User.get_user(organizer['id'])
-                    event.organizers.append(EventOrganizer(user=user))
-                elif 'email' in organizer:  # this is a ghost user
-                    user = models.User.create_ghost_user(organizer['email'])
-                    event.organizers.append(EventOrganizer(user=user))
-
-        if 'contact_info' in data:
-            for contact in data.get('contact_info'):
-                if 'type' in contact and contact['type']:
-                    event.contact_info.append(EventContactInfo(type=contact['type'], info=contact['info']))
-
-        if 'sponsors' in data:
-            for id in data['sponsors']:
-                event.sponsors.append(EventSponsor(models.Brand.get_brand((id))))
-
-        if 'is_published' in data:
-            event.is_published = data['is_published']
-
-        event = models.Event.add_event(event)
-        return response(serializers.event_schema.dump(models.Event.get_event(event.id)))
-
-    def put(self, event_id):
-        data = request.get_json()
-        auth_user = Authenticator.get_instance().get_auth_user()
-
-        if data:
-            event = models.Event.get_event(event_id)
-
-            if event.user.id != auth_user.id:
+            if not data:
                 return response({
-                    "ok": False,
-                    "code": "UNATHORIZED_USER_ACTION"
+                    "ok": True,
+                    "code": "BAD_REQUEST"
                 }, 400)
 
+            event = Event()
+            event.user = Authenticator.get_instance().get_auth_user()
             if 'name' in data:
                 event.name = data.get('name')
 
@@ -811,7 +763,7 @@ class EventView(AuthBaseView):
                 event.venue = data.get('venue')
 
             if 'start_datetime' in data:
-                event.start_datetime= data.get('start_datetime')
+                event.start_datetime = data.get('start_datetime')
 
             if 'end_datetime' in data:
                 event.end_datetime = data.get('end_datetime')
@@ -820,45 +772,107 @@ class EventView(AuthBaseView):
                 event.description = data.get('description')
 
             if 'category_id' in data:
-                event.clear_categories()
                 category = models.EventCategory.get_category(data['category_id'])
                 if category:
                     event.category = category
 
             if 'organizers' in data:
-                if data['organizers']:
-                    event.clear_organizers()
-
                 for organizer in data['organizers']:
                     if 'id' in organizer:
                         user = models.User.get_user(organizer['id'])
                         event.organizers.append(EventOrganizer(user=user))
-                    elif 'email' in organizer: # this is a ghost user
+                    elif 'email' in organizer:  # this is a ghost user
                         user = models.User.create_ghost_user(organizer['email'])
                         event.organizers.append(EventOrganizer(user=user))
 
             if 'contact_info' in data:
-                if data['contact_info']:
-                    event.clear_contact_infos()
-
                 for contact in data.get('contact_info'):
                     if 'type' in contact and contact['type']:
                         event.contact_info.append(EventContactInfo(type=contact['type'], info=contact['info']))
 
             if 'sponsors' in data:
-                if data['sponsors']:
-                    event.clear_sponsors()
-
                 for id in data['sponsors']:
-                    event.sponsors.append(EventSponsor(brand=models.Brand.get_brand(id)))
+                    event.sponsors.append(EventSponsor(models.Brand.get_brand((id))))
 
             if 'is_published' in data:
                 event.is_published = data['is_published']
 
-            event.update()
+            event = models.Event.add_event(event)
+            return response(serializers.event_schema.dump(models.Event.get_event(event.id)))
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
-        event = models.Event.get_event(event.id)
-        return response(serializers.event_schema.dump(event))
+    def put(self, event_id):
+        try:
+            data = request.get_json()
+            auth_user = Authenticator.get_instance().get_auth_user()
+
+            if data:
+                event = models.Event.get_event(event_id)
+
+                if event.user.id != auth_user.id:
+                    return response({
+                        "ok": False,
+                        "code": "UNATHORIZED_USER_ACTION"
+                    }, 400)
+
+                if 'name' in data:
+                    event.name = data.get('name')
+
+                if 'venue' in data:
+                    event.venue = data.get('venue')
+
+                if 'start_datetime' in data:
+                    event.start_datetime = data.get('start_datetime')
+
+                if 'end_datetime' in data:
+                    event.end_datetime = data.get('end_datetime')
+
+                if 'description' in data:
+                    event.description = data.get('description')
+
+                if 'category_id' in data:
+                    event.clear_categories()
+                    category = models.EventCategory.get_category(data['category_id'])
+                    if category:
+                        event.category = category
+
+                if 'organizers' in data:
+                    if data['organizers']:
+                        event.clear_organizers()
+
+                    for organizer in data['organizers']:
+                        if 'id' in organizer:
+                            user = models.User.get_user(organizer['id'])
+                            event.organizers.append(EventOrganizer(user=user))
+                        elif 'email' in organizer:  # this is a ghost user
+                            user = models.User.create_ghost_user(organizer['email'])
+                            event.organizers.append(EventOrganizer(user=user))
+
+                if 'contact_info' in data:
+                    if data['contact_info']:
+                        event.clear_contact_infos()
+
+                    for contact in data.get('contact_info'):
+                        if 'type' in contact and contact['type']:
+                            event.contact_info.append(EventContactInfo(type=contact['type'], info=contact['info']))
+
+                if 'sponsors' in data:
+                    if data['sponsors']:
+                        event.clear_sponsors()
+
+                    for id in data['sponsors']:
+                        event.sponsors.append(EventSponsor(brand=models.Brand.get_brand(id)))
+
+                if 'is_published' in data:
+                    event.is_published = data['is_published']
+
+                event.update()
+
+            event = models.Event.get_event(event.id)
+            return response(serializers.event_schema.dump(event))
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/privacy_terms/is_shareable_during_event', methods=['PUT'])
     def update_is_shareable_during_event_privacy_terms(self, event_id):
@@ -918,25 +932,28 @@ class EventView(AuthBaseView):
 
     @route('<string:event_id>/publish', methods=['PUT'])
     def publish_event(self, event_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
-        event = models.Event.get_event_only(event_id)
+        try:
+            auth_user = Authenticator.get_instance().get_auth_user()
+            event = models.Event.get_event_only(event_id)
 
-        if auth_user.id != event.user_id:
+            if auth_user.id != event.user_id:
+                return response({
+                    "ok": False,
+                    "code": "UNAUTHORIZED_USER_ACTION"
+                }, 400)
+
+            event.publish()
             return response({
-                "ok": False,
-                "code": "UNAUTHORIZED_USER_ACTION"
-            }, 400)
-
-        event.publish()
-        return response({
-            "ok": True,
-            "is_published":True
-        })
+                "ok": True,
+                "is_published": True
+            })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews', methods=['POST'])
     def add_event_review(self, event_id):
-        data = request.get_json()
         try:
+            data = request.get_json()
             data = serializers.create_event_review_schema.load(data)
             print('data###', data)
             content = data['content']
@@ -956,6 +973,8 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.messages
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>', methods=['PUT'])
     def update_event_review(self, event_id, review_id):
@@ -1073,11 +1092,13 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/upvotes', methods=['DELETE'])
     def remove_event_review_upvote(self, event_id, review_id):
-        auth_user = Authenticator().get_instance().get_auth_user()
         try:
+            auth_user = Authenticator().get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             review.remove_upvote_by(auth_user)
@@ -1096,11 +1117,13 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/downvotes', methods=['POST'])
     def downvote_event_review(self, event_id, review_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             downvote = EventReviewDownvote(author=auth_user, review=review)
@@ -1132,11 +1155,13 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/downvotes', methods=['DELETE'])
     def remove_event_review_downvote(self, event_id, review_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             review.remove_downvote_by(auth_user)
@@ -1156,6 +1181,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments', methods=['POST'])
     def add_review_comment(self, event_id, review_id):
@@ -1186,6 +1213,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>', methods=['PUT'])
     def update_review_comment(self, event_id, review_id, comment_id):
@@ -1294,6 +1323,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_COMMENT_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/upvotes', methods=['DELETE'])
     def remove_event_review_comment_upvote(self, event_id, review_id, comment_id):
@@ -1323,6 +1354,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_COMMENT_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/downvotes', methods=['POST'])
     def downvote_event_review_comment(self, event_id, review_id, comment_id):
@@ -1366,6 +1399,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_COMMENT_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/downvotes', methods=['DELETE'])
     def remove_event_review_comment_downvote(self, event_id, review_id, comment_id):
@@ -1395,6 +1430,8 @@ class EventView(AuthBaseView):
                 "ok": False,
                 "code": "EVENT_REVIEW_COMMENT_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses', methods=['POST'])
     def add_event_review_comment_response(self, event_id, review_id, comment_id):
@@ -1433,6 +1470,8 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.message
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses/<string:response_id>', methods=['PUT'])
     def update_event_review_comment_response(self, event_id, review_id, comment_id, response_id):
@@ -1446,8 +1485,8 @@ class EventView(AuthBaseView):
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses/<string:response_id>',
            methods=['GET'])
     def get_event_review_comment_response(self, event_id, review_id, comment_id, response_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             comment = review.get_comment_only(comment_id)
@@ -1474,6 +1513,8 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.message
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses',
            methods=['GET'])
@@ -1573,13 +1614,15 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.message
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route(
-            '<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses/<string:response_id>/upvotes',
-            methods=['DELETE'])
+        '<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses/<string:response_id>/upvotes',
+        methods=['DELETE'])
     def remove_upvote_on_event_review_comment_response(self, event_id, review_id, comment_id, response_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             comment = review.get_comment_only(comment_id)
@@ -1616,12 +1659,14 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.message
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses/<string:response_id>/downvotes',
            methods=['POST'])
     def downvote_event_review_comment_response(self, event_id, review_id, comment_id, response_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             comment = review.get_comment_only(comment_id)
@@ -1672,12 +1717,14 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.message
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/reviews/<string:review_id>/comments/<string:comment_id>/responses/<string:response_id>/downvotes',
            methods=['DELETE'])
     def remove_downvote_on_event_review_comment_response(self, event_id, review_id, comment_id, response_id):
-        auth_user = Authenticator.get_instance().get_auth_user()
         try:
+            auth_user = Authenticator.get_instance().get_auth_user()
             event = models.Event.get_event_only(event_id)
             review = event.get_review_only(review_id)
             comment = review.get_comment_only(comment_id)
@@ -1714,6 +1761,8 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.message
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/purchase-tickets', methods=['POST'])
     def buy_event_tickets(self, event_id):
@@ -1750,6 +1799,8 @@ class EventView(AuthBaseView):
                 "code": "BAD_REQUEST",
                 "errors": e.messages
             })
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/purchased-tickets', methods=['GET'])
     def get_purchased_tickets(self, event_id):
@@ -1765,20 +1816,18 @@ class EventView(AuthBaseView):
                     'unassigned_tickets': models.EventTicket.get_unassigned_tickets_of_type(ticket_type, auth_user),
                     'gifted_tickets': models.EventTicket.get_gifted_tickets(ticket_type, auth_user)
                 })
-
-            print('tickets##', tickets)
-
             grouped_tickets = serializers.attendee_ticket_grouped_by_type_schema.dump(tickets, many=True)
             return response({
                 "ok": True,
                 "tickets": grouped_tickets
             })
-
         except exceptions.EventNotFound:
             return response({
                 "ok": False,
                 "code": "EVENT_NOT_FOUND"
             }, 400)
+        except exceptions.NotAuthUser:
+            return self.not_auth_response()
 
     @route('<string:event_id>/attendees', methods=['GET'])
     def get_event_attendees(self, event_id):

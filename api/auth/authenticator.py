@@ -1,9 +1,9 @@
 from api.auth.data_encryptor import DataEncryptor
 from api import utils
 from api.models import event as models
+from api.repositories.exceptions import NotAuthUser
 
 data_encryptor = DataEncryptor
-
 
 class UserAuthFail(Exception):
 	pass
@@ -42,6 +42,11 @@ class Authenticator:
 		self.auth_user = auth_user
 
 	def get_auth_user(self):
+		if not self.auth_user:
+			raise NotAuthUser()
+		return self.auth_user
+
+	def get_auth_user_without_auth_check(self):
 		return self.auth_user
 
 	@staticmethod
