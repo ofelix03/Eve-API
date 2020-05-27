@@ -17,6 +17,12 @@ class BrandSummarySchema(Schema):
     endorsement_count = fields.Function(lambda obj: len(obj.endorsements))
 
 
+class BrandFounderSchema(Schema):
+    id = fields.String(required=True, dump_only=True)
+    name = fields.String(required=True)
+    url = fields.String(required=True)
+
+
 class BrandValidationSchema(Schema):
     id = fields.String(required=True)
     validator = fields.Nested(UserSummarySchema, required=True)
@@ -36,7 +42,8 @@ class BrandSchema(Schema):
     category = fields.Nested(BrandCategorySchema)
     endorsement_count = fields.Function(lambda obj: len(obj.endorsements))
     endorsements = fields.Nested(BrandValidationSchema, many=True)
-    founder = fields.Function(lambda obj:  obj.founder.split(",") if obj.founder else None)
+    # founder = fields.Function(lambda obj:  obj.founder.split(",") if obj.founder else None)
+    founders = fields.Nested(BrandFounderSchema, many=True)
     founded_date = fields.String(required=True)
     website_link = fields.String(required=True)
 

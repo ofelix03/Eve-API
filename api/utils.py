@@ -18,6 +18,7 @@ CLOUDINARY_ASSETS_URL = CLOUDINARY_URL + 'asssets/'
 
 FEMALE_PROFILE_IMAGE = CLOUDINARY_ASSETS_URL + 'female-profile.svg'
 MALE_PROFILE_IMAGE = CLOUDINARY_ASSETS_URL + 'male-profile.svg'
+NO_IMAGE = CLOUDINARY_ASSETS_URL + 'no-image.jpg'
 
 class TicketDiscountOperator(object):
     EQUAL_TO = '='
@@ -90,3 +91,12 @@ MEDIA_DIR = '/home/felix/Desktop/EVE_MEDIA'
 
 def generate_slug(url):
     return slugify(url, to_lower=True)
+
+
+def founder_url_explode(founder_str):
+    founder_str = founder_str.replace('<', '===')
+    founder_str = founder_str.replace('>', '===')
+    founder_url_list = list(filter(lambda l: len(l) > 0, map(lambda l: l.strip(), founder_str.split("==="))))
+    if len(founder_url_list) > 1:
+        return founder_url_list[0], founder_url_list[1]
+    return founder_url_list[0], None

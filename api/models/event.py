@@ -1260,7 +1260,7 @@ class Event(db.Model):
     def get_poster(self):
         image = db.session.query(EventMedia).filter(EventMedia.event_id == self.id).filter(
             EventMedia.poster == True).first()
-        return image.source_url if image else None
+        return image.source_url if image  else utils.NO_IMAGE
 
 
 class EventOrganizer(db.Model):
@@ -1343,13 +1343,13 @@ class EventSpeaker(db.Model):
     social_media_id = db.Column(db.String, db.ForeignKey('social_media.id', ondelete=CASCADE, onupdate=CASCADE))
     event = relationship(Event)
     event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete=CASCADE, onupdate=CASCADE))
-    image = db.Column(db.String, default="https://source.unsplash.com/featured/?face,woman")
+    image = db.Column(db.String)
     profession_id = db.Column(db.String, db.ForeignKey('jobs.id', ondelete=CASCADE, onupdate=CASCADE))
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, name=None, social_account_id=None, social_account=None, social_account_handle=None,
-                 profession_id=None, profession=None, event=None, event_id=None, image=None):
+                 profession_id=None, profession=None, event=None, event_id=None, image=utils.NO_IMAGE):
         self.id = str(uuid.uuid4())
         self.name = name
         self.social_media_id = social_account_id
@@ -1378,7 +1378,7 @@ class EventSpeaker(db.Model):
         return db.session.query(EventSpeaker).filter(EventSpeaker.id == speaker_id).first()
 
     def update(self, name=None, social_account_id=None, social_account=None, social_account_handle=None,
-               profession_id=None, profession=None, event=None, event_id=None, image=None):
+               profession_id=None, profession=None, event=None, event_id=None, image=utils.NO_IMAGE):
         self.name = name
         self.social_media_id = social_account_id
         self.social_account = social_account
@@ -1415,7 +1415,7 @@ class EventCategory(db.Model):
     slug = db.Column(db.String)
     created_at = db.Column(db.DateTime)
 
-    def __init__(self, name=None, image=None):
+    def __init__(self, name=None, image=utils.NO_IMAGE):
         self.id = str(uuid.uuid4())
         self.name = name
         self.image = image
@@ -3507,11 +3507,11 @@ class Brand(db.Model):
     category = relationship('BrandCategory')
     category_id = db.Column(db.String, db.ForeignKey('brand_categories.id', ondelete=CASCADE, onupdate=CASCADE))
     endorsements = relationship('BrandValidation')
-    founder = db.Column(db.String)
     founded_date = db.Column(db.String)
+    founders = relationship('BrandFounder')
     website_link = db.Column(db.String)
 
-    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None,
+    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=utils.NO_IMAGE, founders=None,
                  founded_date=None, website_link=None):
         self.id = str(uuid.uuid4())
         self.created_at = datetime.now()
@@ -3521,15 +3521,15 @@ class Brand(db.Model):
         self.creator = creator
         self.category = category
         self.image = image
-        self.founder = founder
+        self.founders = founders
         self.founded_date = founded_date
         self.website_link = website_link
 
     @classmethod
-    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founder=None,
+    def create(cls, name=None, description=None, country=None, creator=None, category=None, image=None, founders=None,
                founded_date=None, website_link=None):
         brand = cls(name=name, description=description, country=country, creator=creator, category=category,
-                    image=image, founder=founder, founded_date=founded_date, website_link=website_link)
+                    image=image, founders=founders, founded_date=founded_date, website_link=website_link)
         db.session.add(brand)
         db.session.commit()
         return brand
@@ -3629,7 +3629,7 @@ class BrandMedia(db.Model):
     source_url = db.Column(db.String)
     format = db.Column(db.String)
     brand = relationship(Brand)
-    brand_id = db.Column(db.String, db.ForeignKey('brands.id', ondelete='CASCADE', onupdate='CASCADE'))
+    brand_id = db.Column(db.String, db.ForeignKey('brands.id', ondelete=CASCADE, onupdate=CASCADE))
     created_at = db.Column(db.DateTime)
     public_id = db.Column(db.String)
 
@@ -3640,6 +3640,21 @@ class BrandMedia(db.Model):
         self.public_id = public_id
         self.filename = filename
         self.created_at = datetime.now()
+
+
+class BrandFounder(db.Model):
+    __tablename__ = 'brand_founders'
+
+    id = db.Column(db.String, primary_key=True)
+    name = db.Column(db.String, index=True)
+    url = db.Column(db.String)
+    brand_id = db.Column(db.ForeignKey('brands.id', ondelete=CASCADE, onupdate=CASCADE))
+    brand = relationship('Brand')
+
+    def __init__(self, name=None, url=None):
+        self.id = str(uuid.uuid4())
+        self.name = name
+        self.url = url
 
 
 class BrandValidation(db.Model):

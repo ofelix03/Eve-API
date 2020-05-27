@@ -3,8 +3,9 @@ from api.views.auth_base import AuthBaseView
 from api.auth.authenticator import Authenticator
 from marshmallow.exceptions import ValidationError
 from api.serializers.brand import BrandSchema, CreateBrandSchema, BrandValidationSchema
-from api.models.event import Brand, BrandCategory, BrandValidation, BrandMedia
+from api.models.event import Brand, BrandCategory, BrandValidation, BrandMedia, BrandFounder
 from api.repositories import exceptions
+from api import utils
 
 brand_schema = BrandSchema()
 create_brand_schema = CreateBrandSchema()
@@ -67,12 +68,17 @@ class BrandView(AuthBaseView):
             image = data['image']
             image = BrandMedia(source_url=image['source_url'], format=image['format'], public_id=image['public_id'],
                                filename=image['filename'])
-            founder = ", ".join(data['founder'])
+            founders = data['founder']
+            brand_founders = []
+            for founder in founders:
+                [founder, founder_url] = utils.founder_url_explode(founder)
+                brand_founders.append(BrandFounder(name=founder, url=founder_url))
+
             founded_date = data['founded_date']
             category = BrandCategory.get_category(category_id)
             website_link = data['website']
             brand = Brand.create(name=name, description=description, country=country, creator=auth_user,
-                                 category=category, image=image, founder=founder, founded_date=founded_date,
+                                 category=category, image=image, founders=brand_founders, founded_date=founded_date,
                                  website_link=website_link)
             return response(brand_schema.dump(brand))
         except ValidationError as e:
@@ -110,7 +116,12 @@ class BrandView(AuthBaseView):
                 brand.category = BrandCategory.get_category(category_id)
 
             if 'founder' in data:
-                brand.founder = ", ".join(data['founder'])
+                founders = data['founder']
+                brand_founders = []
+                for founder in founders:
+                    [founder, founder_url] = utils.founder_url_explode(str(founder))
+                    brand_founders.append(BrandFounder(name=founder, url=founder_url))
+                brand.founders = brand_founders
 
             if 'founded_date' in data:
                 brand.founded_date = data['founded_date']
@@ -120,8 +131,8 @@ class BrandView(AuthBaseView):
 
             if 'image' in data:
                 image = data['image']
-                brand.image = BrandMedia(source_url=image['source_url'], format=image['format'], public_id=image['public_id'],
-                                   filename=image['filename'])
+                brand.image = BrandMedia(source_url=image['source_url'], format=image['format'],
+                                         public_id=image['public_id'], filename=image['filename'])
 
             brand.update()
             return response(brand_schema.dump(brand))
