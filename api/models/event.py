@@ -291,12 +291,13 @@ class User(db.Model):
         db.session.commit()
 
     def am_following_user(self, user):
-        if not user:
-            return False
-        return db.session.query(db.session.query(UserFollower.id)
+        print('am_following_User##', user)
+        if user:
+            return db.session.query(db.session.query(UserFollower.id)
                                 .filter(UserFollower.user_id == user.id)
                                 .filter(UserFollower.follower_id == self.id).exists()
                                 ).scalar()
+        return False
 
     def is_following_me(self, user):
         return db.session.query(is_following_me=db.session.query(UserFollower.id)
@@ -710,6 +711,7 @@ class Event(db.Model):
         if not user:
             return False
 
+        print("userme##", user)
         return db.session.query(db.session.query(EventBookmark)
                                 .filter(EventBookmark.event_id == self.id)
                                 .filter(EventBookmark.user_id == user.id).exists()

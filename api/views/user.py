@@ -99,12 +99,12 @@ class UserView(AuthBaseView):
 
     @route('/logout', methods=['POST'])
     def logout_user(self):
-        try:
-            user = Authenticator.get_instance().get_auth_user()
+        user = Authenticator.get_instance().get_auth_user_without_auth_check()
+        print("user##", user)
+        if user:
             user.remove_login_session()
-            return response("")
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
+        return response("")
+
 
     @route('/login', methods=['POST'])
     def login_user(self):
@@ -472,15 +472,12 @@ class UserView(AuthBaseView):
 
     @route('/notifications/unread_count', methods=['GET'])
     def get_user_notifcation_counts(self):
-        try:
-            auth_user = Authenticator.get_instance().get_auth_user()
-            return response({
-                "ok": True,
-                "unread_notifications_count": Notification.get_total_unread_notifications(auth_user)
-                if auth_user else 0
-            })
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
+        auth_user = Authenticator.get_instance().get_auth_user_without_auth_check()
+        notification_count = Notification.get_total_unread_notifications(auth_user) if auth_user else 0
+        return response({
+            "ok": True,
+            "unread_notifications_count": notification_count
+        })
 
     @route('/notifications/mark_as_read', methods=['PUT'])
     def mark_notifications_as_read(self):

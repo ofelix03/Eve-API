@@ -22,6 +22,7 @@ from api.utils import TicketDiscountOperator, TicketDiscountType
 from api.models.domain.user_payment_info import DiscountTypes
 from . import *
 from ..models.pagination_cursor import PaginationCursor
+from .. import decorators
 
 
 class EventView(AuthBaseView):
@@ -31,7 +32,7 @@ class EventView(AuthBaseView):
         period_query = False
         category = None
         payload = {}
-
+        auth_user = Authenticator.get_instance().get_auth_user_without_auth_check()
         cursor = self.get_cursor(request)
         if request.args:
             if 'output' in request.args:
@@ -57,10 +58,16 @@ class EventView(AuthBaseView):
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
                     events = models.Event.get_events(period=date, category_id=category.id, cursor=cursor)
-                    events = serializers.event_schema.dump(events, many=True)
+                    if auth_user:
+                        events = serializers.event_schema.dump(events, many=True)
+                    else:
+                        events = serializers.event_anon_schema.dump(events, many=True)
             else:
                 events = models.Event.get_events(category_id=category.id, cursor=cursor)
-                events = serializers.event_schema.dump(events, many=True)
+                if auth_user:
+                    events = serializers.event_schema.dump(events, many=True)
+                else:
+                    event = serializers.event_anon_schema.dump(events, many=True)
             payload.update({
                 'events': events,
                 'metadata': {
@@ -82,7 +89,10 @@ class EventView(AuthBaseView):
                         cursor = PaginationCursor()
                         date = event_periods.EventPeriods.get_date(period_query)
                         fetched_events = models.Event.get_events_summary(period=date, cursor=cursor)
-                        fetched_events = serializers.event_summary_schema.dump(fetched_events, many=True)
+                        if auth_user:
+                            fetched_events = serializers.event_summary_schema.dump(fetched_events, many=True)
+                        else:
+                            fetched_events = serializers.event_summary_anon_schema.dump(fetched_events, many=True)
                         events[period_query] = {
                             'data': fetched_events,
                             'metadata': {
@@ -103,7 +113,10 @@ class EventView(AuthBaseView):
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
                     events = models.Event.get_events_summary(category=category, period=date, cursor=cursor)
-                    events = serializers.event_summary_schema.dump(events, many=True)
+                    if auth_user:
+                        events = serializers.event_summary_schema.dump(events, many=True)
+                    else:
+                        events = serializers.event_summary_anon_schema.dump(events, many=True)
                     events_count = models.Event.get_events_total(category=category, period=date)
                     payload.update({
                         'ok': True,
@@ -121,7 +134,10 @@ class EventView(AuthBaseView):
 
             else:
                 events = models.Event.get_events_summary(category=category, cursor=cursor)
-                events = serializers.event_summary_schema.dump(events, many=True)
+                if auth_user:
+                    events = serializers.event_summary_schema.dump(events, many=True)
+                else:
+                    events = serializers.event_summary_anon_schema.dump(events, many=True)
                 events_count = models.Event.get_events_total(category=category)
 
                 payload.update({
@@ -139,15 +155,18 @@ class EventView(AuthBaseView):
                 return response(payload)
 
     def get(self, event_id):
-
+        auth_user = Authenticator.get_instance().get_auth_user_without_auth_check()
         if not models.Event.has_event(event_id):
             return response({
                 "ok": True,
                 "code": "CONTENT_NOT_FOUND",
             }, 204)
         event = models.Event.get_event(event_id)
-        response_payload = serializers.event_response_schema.dump(event)
-        return response(response_payload)
+        if auth_user:
+            event = serializers.event_schema.dump(event)
+        else:
+            event = serializers.event_anon_schema.dump(event)
+        return response(event)
 
     def delete(self, event_id=None):
         try:
@@ -712,6 +731,11 @@ class EventView(AuthBaseView):
                                        recipient=event.user,
                                        actor=auth_user,
                                        event=event)
+            return response({
+                "ok": True,
+                "event_id": event_id,
+                "is_bookmarked": event.is_bookmarked_by(auth_user)
+            }, 201)
         except exceptions.NotAuthUser:
             return self.not_auth_response()
 
@@ -1858,17 +1882,29 @@ class EventView(AuthBaseView):
 
     @route('/search', methods=['GET'])
     def search_events(self):
+        auth_user = Authenticator.get_instance().get_auth_user_without_auth_check()
         cursor = self.get_cursor(request)
         query = request.args.get('q')
         category = request.args.get('category')
         country = request.args.get('country')
         period = request.args.get('time')
 
-        category = models.EventCategory.find_category_by_slug(category)
+        if query:
+            category = models.EventCategory.find_category_by_slug(category)
 
-        search_result = models.Event.search_for_events(query, category=category, country=country, period=period, cursor=cursor)
-        search_result_total = models.Event.search_for_events_total(query, category=category, country=country, period=period)
-        events = serializers.event_schema.dump(search_result, many=True)
+            search_result = models.Event.search_for_events(query, category=category, country=country, period=period,
+                                                           cursor=cursor)
+            search_result_total = models.Event.search_for_events_total(query, category=category, country=country,
+                                                                       period=period)
+            if auth_user:
+                events = serializers.event_schema.dump(search_result, many=True)
+            else:
+                events = serializers.event_anon_schema.dump(search_result, many=True)
+        else:
+            # @todo show popular events
+            events = None
+            search_result_total = 0
+
         return response({
             "ok": True,
             "events": events,
@@ -1881,6 +1917,7 @@ class EventView(AuthBaseView):
                 }
             }
         })
+
 
     @route('/<string:event_id>/media', methods=['POST'])
     def upload_media(self, event_id):

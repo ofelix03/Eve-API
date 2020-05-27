@@ -6,7 +6,9 @@ from . import user
 from . import image
 
 event_schema = event.EventSchema()
+event_anon_schema = event.EventForAnonUserSchema()
 event_summary_schema = event.EventSummarySchema()
+event_summary_anon_schema = event.EventSummaryForAnonUserSchema()
 event_response_schema = event.EventResponseSchema()
 event_update_schema = event.EventUpdateSchema()
 event_ticket_type_schema = event.EventTicketTypeSchema()
@@ -36,6 +38,7 @@ user_schema = user.UserSummarySchema()
 
 user_schema = user.UserSchema()
 user_summary_schema = user.UserSummarySchema()
+user_summary_anon_schema = user.UserSummaryAnonSchema()
 logged_in_user_schema = user.LoggedInUserSchema()
 user_full_schema = user.UserSchemaFull()
 create_user_schema = user.CreateUserSchema()

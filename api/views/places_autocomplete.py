@@ -40,26 +40,33 @@ class PlacesAutocompleteView(FlaskView):
     def reverse_geocode(self):
         data = request.get_json()
         if 'latitude' in data and 'longitude' in data:
-            latlng = (data['latitude'], data['longitude'])
-            gmaps = googlemaps.Client(key=GOOGLE_CLOUD_API_KEY)
-            results = gmaps.reverse_geocode(latlng, result_type=['country'])
-            if len(results):
-                country_name = results[0]['address_components'][0]['long_name']
-                country_shortname = results[0]['address_components'][0]['short_name']
-                return response({
-                    'ok': True,
-                    'data': {
-                        'country': {
-                            'name': country_name,
-                            'shortname': country_shortname
+            try:
+                latlng = (data['latitude'], data['longitude'])
+                gmaps = googlemaps.Client(key=GOOGLE_CLOUD_API_KEY)
+                results = gmaps.reverse_geocode(latlng, result_type=['country'])
+                if len(results):
+                    country_name = results[0]['address_components'][0]['long_name']
+                    country_shortname = results[0]['address_components'][0]['short_name']
+                    return response({
+                        'ok': True,
+                        'data': {
+                            'country': {
+                                'name': country_name,
+                                'shortname': country_shortname
+                            }
                         }
-                    }
-                })
-            else:
+                    })
+                else:
+                    return response({
+                        'ok': True,
+                        'code': 'EMPTY_RESULT',
+                        'data': None
+                    })
+            except (googlemaps.exceptions.TransportError, googlemaps.exceptions.Timeout):
                 return response({
-                    'ok': True,
-                    'code': 'EMPTY_RESULT',
-                    'data': None
+                    "ok": False,
+                    "code": 'CONNECTION_ISSUE',
+                    "data": None
                 })
         else:
             return response({
