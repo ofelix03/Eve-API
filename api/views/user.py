@@ -231,24 +231,26 @@ class UserView(AuthBaseView):
     def get_created_events(self, user_id=None):
         try:
             cursor = self.get_cursor(request)
-            if not user_id:
-                auth_user = self.get_auth_user()
+            auth_user = self.get_auth_user_without_auth_check()
+            if user_id:
+                user = User.get_user((user_id))
             else:
-                auth_user = User.get_user(user_id)
+                user = self.get_auth_user_without_auth_check()
 
             is_published = True if 'is_published' in request.args else False
             is_not_published = True if 'not_published' in request.args else False
 
-            print("user##", auth_user)
+            events = user.get_created_events(cursor, is_published, is_not_published)
+            events_total = user.get_created_events_count(is_published, is_not_published)
 
-            events = auth_user.get_created_events(cursor, is_published, is_not_published)
-            events_total = auth_user.get_created_events_count(is_published, is_not_published)
-
-            print("events##", events)
+            if auth_user:
+                events = serializers.event_summary_schema.dump(events, many=True)
+            else:
+                events = serializers.event_summary_anon_schema.dump(events, many=True)
 
             return response({
                 "ok": True,
-                "events": serializers.event_summary_schema.dump(events, many=True),
+                "events": events,
                 "events_total": events_total,
                 "metadata": {
                     "cursor": {
@@ -258,8 +260,6 @@ class UserView(AuthBaseView):
                     }
                 }
             })
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
         except exceptions.UserNotFound:
             return response({
                 'ok': False,
@@ -271,15 +271,24 @@ class UserView(AuthBaseView):
     def get_attending_events(self, user_id=None):
         try:
             cursor = self.get_cursor(request)
-            if not user_id:
-                auth_user = self.get_auth_user()
+            auth_user = self.get_auth_user_without_auth_check()
+
+            if user_id:
+                user = User.get_user(user_id)
             else:
-                auth_user = User.get_user(user_id)
-            events = auth_user.get_attending_events(cursor)
-            events_total = auth_user.get_attending_events_count()
+                user = auth_user
+
+            events = user.get_attending_events(cursor)
+            events_total = user.get_attending_events_count()
+
+            if auth_user:
+                events = serializers.event_summary_schema.dump(events, many=True)
+            else:
+                events = serializers.event_summary_anon_schema.dump(events, many=True)
+
             return response({
                 "ok": True,
-                "events": serializers.event_summary_schema.dump(events, many=True),
+                "events": events,
                 "events_count": events_total,
                 "metadata": {
                     "cursor": {
@@ -289,8 +298,6 @@ class UserView(AuthBaseView):
                     }
                 }
             })
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
         except exceptions.UserNotFound:
             return response({
                 'ok': False,
@@ -302,15 +309,23 @@ class UserView(AuthBaseView):
     def get_bookmarked_events(self, user_id=None):
         try:
             cursor = self.get_cursor(request)
-            if not user_id:
-                auth_user = self.get_auth_user()
+            auth_user = self.get_auth_user_without_auth_check()
+
+            if user_id:
+                user = User.get_user(user_id)
             else:
-                auth_user = User.get_user(user_id)
-            events = auth_user.get_bookmarked_events(cursor)
-            events_total = auth_user.get_bookmarked_events_count()
+                user = auth_user
+
+            events = user.get_bookmarked_events(cursor)
+            events_total = user.get_bookmarked_events_count()
+
+            if auth_user:
+                events = serializers.event_summary_schema.dump(events, many=True)
+            else:
+                events = serializers.event_summary_anon_schema.dump(events, many=True)
             return response({
                 "ok": True,
-                "events": serializers.event_summary_schema.dump(events, many=True),
+                "events": events,
                 "events_count": events_total,
                 "metadata": {
                     "cursor": {
@@ -325,17 +340,17 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': 'USER_NOT_FOUND'
             }, 404)
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
 
     @route('/me/followings', methods=['GET'])
     @route('/<string:user_id>/followings', methods=['GET'])
     def get_my_followings(self, user_id=None):
         try:
             auth_user = Authenticator.get_instance().get_auth_user()
-            if not user_id:
-                followings = auth_user.get_followings()
-                followings_count = auth_user.get_total_followings_count()
+
+            if user_id:
+                user = User.get_user(user_id)
+                followings = user.get_followings()
+                followings_count = user.get_total_followings_count()
             else:
                 followings = auth_user.get_followings()
                 followings_count = auth_user.get_total_followings_count()
@@ -345,11 +360,6 @@ class UserView(AuthBaseView):
                 'followings_count': followings_count
             })
         except exceptions.NotAuthUser:
-            response({
-                'ok': False,
-                'code': 'USER_NOT_FOUND'
-            }, 400)
-        except exceptions.NotAuthUser:
             return self.not_auth_response()
 
     @route('/me/followers', methods=['GET'])
@@ -357,12 +367,15 @@ class UserView(AuthBaseView):
     def get_my_followers(self, user_id=None):
         try:
             auth_user = Authenticator.get_instance().get_auth_user()
-            if not user_id:
-                followers = auth_user.get_followers()
-                followers_count = auth_user.get_total_followers_count()
+
+            if user_id:
+                user = User.get_user(user_id)
+                followers = user.get_followers()
+                followers_count = user.get_total_followers_count()
             else:
                 followers = auth_user.get_followers()
                 followers_count = auth_user.get_total_followers_count()
+
             return response({
                 'ok': True,
                 'followers': serializers.user_summary_schema.dump(followers, many=True),
@@ -422,23 +435,6 @@ class UserView(AuthBaseView):
     def get_user_notifications(self):
         try:
             auth_user = Authenticator.get_instance().get_auth_user()
-
-            # if not auth_user:
-            #     return response({
-            #         "ok": True,
-            #         "notifications": 0,
-            #         "all_notifications_count": 0,
-            #         "unread_notifications_count": 0,
-            #         "read_notifications_count": 0,
-            #         "metadata": {
-            #             "cursor": {
-            #                 "before": None,
-            #                 "after": None,
-            #                 "limit": None
-            #             }
-            #         }
-            #     })
-
             cursor = self.get_cursor(request)
 
             if 't' in request.args:

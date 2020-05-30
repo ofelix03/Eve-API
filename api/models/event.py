@@ -256,8 +256,8 @@ class User(db.Model):
 
     @classmethod
     def get_user(cls, user_id):
-        if not cls.has_user(user_id):
-            raise exceptions.user.UserNotFound()
+        # if not cls.has_user(user_id):
+        #     raise exceptions.user.UserNotFound()
         return db.session.query(User).filter(User.id == user_id).first()
 
     @staticmethod
@@ -395,10 +395,12 @@ class User(db.Model):
             query = query.filter(Event.is_published==False)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
+                                 < func.round(cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
+                                 > func.round(cursor.get_before_as_float(), 3))
 
         events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 

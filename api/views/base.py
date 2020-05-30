@@ -10,6 +10,9 @@ class BaseView(FlaskView):
     def get_auth_user(self):
         return Authenticator.get_instance().get_auth_user()
 
+    def get_auth_user_without_auth_check(self):
+        return Authenticator.get_instance().get_auth_user_without_auth_check()
+
     def after_request(self, name, response):
         return response
 
