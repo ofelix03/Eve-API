@@ -820,7 +820,6 @@ class EventView(AuthBaseView):
 
             if 'is_published' in data:
                 event.is_published = data['is_published']
-
             event = models.Event.add_event(event)
             return response(serializers.event_schema.dump(models.Event.get_event(event.id)))
         except exceptions.NotAuthUser:

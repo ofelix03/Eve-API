@@ -3,7 +3,7 @@ FROM python:3.6-buster
 RUN mkdir -p /usr/src/api/api/.
 WORKDIR /usr/src/api/api/.
 COPY api/ .
-RUN pip install  -r  ./requirements.txt
+RUN pip install -r ./requirements.txt
 ENV PYTHONPATH /usr/src/api
 
 RUN apt-get update --fix-missing

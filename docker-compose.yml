@@ -1,9 +1,9 @@
 version: '3'
 services:
   api:
-    image: eve-api
+    image: eve-api:2
     container_name: eve-api
-#    command: ["/usr/bin/python", "-m", "./seeders"]
+#    command: ["alembic", "upgrade", "head"]
     ports:
       - "8000:8000"
       - "8050:8050"
@@ -19,6 +19,7 @@ services:
     restart: always
     environment:
       POSTGRES_PASSWORD:
+      POSTGRES_DB: Eve2
     volumes:
       - ./pgdata:/var/lib/postgresql/data
     ports:
