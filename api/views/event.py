@@ -816,12 +816,15 @@ class EventView(AuthBaseView):
 
             if 'sponsors' in data:
                 for id in data['sponsors']:
-                    event.sponsors.append(EventSponsor(models.Brand.get_brand((id))))
+                    event.sponsors.append(EventSponsor(models.Brand.get_brand(id)))
 
             if 'is_published' in data:
                 event.is_published = data['is_published']
             event = models.Event.add_event(event)
-            return response(serializers.event_schema.dump(models.Event.get_event(event.id)))
+            print("eventId##", event.id)
+            event = models.Event.get_event(event.id)
+            print("event##", event)
+            return response(serializers.event_schema.dump(event))
         except exceptions.NotAuthUser:
             return self.not_auth_response()
 

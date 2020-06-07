@@ -640,7 +640,7 @@ class Event(db.Model):
 
     @staticmethod
     def add_event(event):
-        # db.session.add(event)
+        db.session.add(event)
         db.session.commit()
         return event
 
