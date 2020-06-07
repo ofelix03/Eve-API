@@ -640,9 +640,10 @@ class Event(db.Model):
 
     @staticmethod
     def add_event(event):
-        # db.session.add(event)
+        event = db.session.merge(event)
+        db.session.add(event)
         db.session.commit()
-        return event
+        return Event.get_event(event.id)
 
     @classmethod
     def delete_event(cls, event_id):
