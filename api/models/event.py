@@ -15,8 +15,6 @@ from api.models.domain.user_payment_info import PaymentTypes
 from api.exceptions import payments as payment_exceptions
 from api.repositories import exceptions
 
-
-# from api import exceptions
 from api.models.domain.user_payment_info import DiscountTypes
 from api.utils import TicketDiscountOperator, TicketDiscountType, generate_slug
 
@@ -291,7 +289,6 @@ class User(db.Model):
         db.session.commit()
 
     def am_following_user(self, user):
-        print('am_following_User##', user)
         if user:
             return db.session.query(db.session.query(UserFollower.id)
                                 .filter(UserFollower.user_id == user.id)

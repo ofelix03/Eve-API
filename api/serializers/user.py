@@ -22,7 +22,7 @@ class CreateUserSchema(Schema):
 class UserSchema(Schema):
     id = fields.String(required=True)
     name = fields.String()
-    image = fields.String(required=True, default='https://source.unsplash.com/1600x900/?human')
+    image = fields.String(required=True)
     email = fields.Email()
     country = fields.Nested(CountrySerializer, required=True)
     gender = fields.String()
@@ -49,19 +49,21 @@ class UserSummarySchema(Schema):
     id = fields.String(required=True)
     name = fields.String(required=True)
     email = fields.String(required=True)
-    image = fields.String(required=True, default='https://source.unsplash.com/1600x900/?human')
+    image = fields.String(required=True)
     is_ghost = fields.Boolean()
-    is_follower = fields.Function(lambda user: Authenticator.get_instance().get_auth_user_without_auth_check().am_following_user(user)
-                                  if Authenticator.get_instance().get_auth_user_without_auth_check() else False)
+    is_follower = fields.Function(lambda user: Authenticator.get_instance().get_auth_user_without_auth_check().
+                                  am_following_user(user) if Authenticator.get_instance().
+                                  get_auth_user_without_auth_check() else False)
 
 
 class UserSummaryAnonSchema(Schema):
     id = fields.String(required=True)
     name = fields.String(required=True)
     email = fields.String(required=True)
-    image = fields.String(required=True, default='https://source.unsplash.com/1600x900/?human')
+    image = fields.String(required=True)
     is_ghost = fields.Boolean(default=False)
     is_follower = fields.Boolean(default=False)
+
 
 class ChangeUserPasswordSerliazer(Schema):
     new_password = fields.String(required=True)
