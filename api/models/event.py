@@ -595,6 +595,7 @@ class Event(db.Model):
     id = db.Column(db.String, primary_key=True, default=uuid.uuid4)
     name = db.Column(db.Text)
     description = db.Column(db.Text)
+    venue_type = db.Column(db.String, index=True)
     venue = db.Column(db.String)
     start_datetime = db.Column(db.DateTime)
     end_datetime = db.Column(db.DateTime)
