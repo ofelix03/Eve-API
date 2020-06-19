@@ -8,10 +8,11 @@ class BadCursorQuery(Exception):
 
 class PaginationCursor(object):
 
-    def __init__(self, cursor_before=None, cursor_limit=30, cursor_after=None):
+    def __init__(self, cursor_before=None, cursor_limit=2, cursor_after=None):
         self.before = cursor_before
         self.after = cursor_after
         self.limit = cursor_limit
+        self.has_more = False
 
     def set_limit(self, cursor_limit):
         self.limit = int(cursor_limit)
@@ -39,6 +40,9 @@ class PaginationCursor(object):
                 self.before = None
         except Exception:
             raise BadCursorQuery()
+        
+    def set_has_more(self, has_more):
+        self.has_more = has_more
 
     def get_after_as_float(self):
         if not self.after:

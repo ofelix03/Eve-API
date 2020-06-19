@@ -1,5 +1,6 @@
 import uuid, random
 from enum import Enum
+import copy
 from datetime import datetime, timedelta
 from sqlalchemy.orm import joinedload, relation
 from sqlalchemy import func, or_, and_, text
@@ -17,6 +18,8 @@ from api.repositories import exceptions
 
 from api.models.domain.user_payment_info import DiscountTypes
 from api.utils import TicketDiscountOperator, TicketDiscountType, generate_slug
+from api.decorators import paginator
+
 
 
 from flask_sqlalchemy import SQLAlchemy
@@ -291,9 +294,9 @@ class User(db.Model):
     def am_following_user(self, user):
         if user:
             return db.session.query(db.session.query(UserFollower.id)
-                                .filter(UserFollower.user_id == user.id)
-                                .filter(UserFollower.follower_id == self.id).exists()
-                                ).scalar()
+                                    .filter(UserFollower.user_id == user.id)
+                                    .filter(UserFollower.follower_id == self.id).exists()
+                                    ).scalar()
         return False
 
     def is_following_me(self, user):
@@ -711,8 +714,6 @@ class Event(db.Model):
     def is_bookmarked_by(self, user):
         if not user:
             return False
-
-        print("userme##", user)
         return db.session.query(db.session.query(EventBookmark)
                                 .filter(EventBookmark.event_id == self.id)
                                 .filter(EventBookmark.user_id == user.id).exists()
@@ -767,6 +768,12 @@ class Event(db.Model):
         return query.count()
 
     @staticmethod
+    def has_more_events(period=None, category_id=None, creator_id=None, cursor=None, is_published=True):
+        has_more_cursor = copy.copy(cursor)
+        more_events = Event.get_events(period, category_id, creator_id, has_more_cursor, is_published)
+        return len(more_events) > 0
+
+    @staticmethod
     def get_events(period=None, category_id=None, creator_id=None, cursor=None, is_published=True):
         query = db.session.query(Event).options(
             joinedload(Event.recommendations),
@@ -817,7 +824,7 @@ class Event(db.Model):
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(
                 cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(
                 cursor.get_before_as_float(), 3))
 
@@ -826,11 +833,18 @@ class Event(db.Model):
         if events:
             cursor.set_before(events[0].created_at)
             cursor.set_after(events[-1].created_at)
+            cursor.set_has_more(Event.has_more_events(period, category_id, creator_id, cursor, is_published))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
-
+            cursor.set_has_more(False)
         return events
+
+    @staticmethod
+    def has_more_events_summary(category=None, period=None, cursor=None, is_published=True):
+        has_more_cursor = copy.copy(cursor)
+        more_events = Event.get_events_summary(category, period, has_more_cursor, is_published)
+        return len(more_events) > 0
 
     @staticmethod
     def get_events_summary(category=None, period=None, cursor=None, is_published=True):
@@ -863,12 +877,12 @@ class Event(db.Model):
 
         if category:
             query = query.filter(Event.category_id == category.id)
-        
+
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
                                  < func.round(cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
                                  > func.round(cursor.get_before_as_float(), 3))
 
@@ -877,9 +891,12 @@ class Event(db.Model):
         if events:
             cursor.set_before(events[0].created_at)
             cursor.set_after(events[-1].created_at)
+            cursor.set_has_more(Event.has_more_events_summary(category, period, cursor, is_published))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
+
         return events
 
     @staticmethod
@@ -1112,6 +1129,12 @@ class Event(db.Model):
             joinedload(EventReview.downvotes)
         ).filter(EventReview.id == review_id).first()
 
+    def has_more_reviews(self, cursor):
+        _cursor = copy.copy(cursor)
+        more_reviews = self.get_reviews(_cursor)
+        print("has_more_reviews##", more_reviews)
+        return len(more_reviews) > 0
+
     def get_reviews(self, cursor):
         query = db.session.query(EventReview).options(
             joinedload(EventReview.author),
@@ -1127,7 +1150,7 @@ class Event(db.Model):
                 func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) < func.round(
                     cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(
                 func.round(cast(func.extract('EPOCH', EventReview.created_at), Numeric), 3) > func.round(
                     cursor.get_before_as_float(), 3))
@@ -1137,9 +1160,11 @@ class Event(db.Model):
         if reviews:
             cursor.set_before(reviews[0].created_at)
             cursor.set_after(reviews[-1].created_at)
+            cursor.set_has_more(self.has_more_reviews(cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return reviews
 
@@ -1181,7 +1206,7 @@ class Event(db.Model):
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
                                  < func.round( cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
                                  > func.round(cursor.get_before_as_float(), 3))
 
@@ -2214,7 +2239,7 @@ class EventTicket(db.Model):
                                 .filter(
             EventTicket.assignment.any(EventTicketTypeAssignment.ticket_id == EventTicket.id),
             EventTicketTypeAssignment.assigned_to_user_id == user.id
-            ).exists()).scalar()
+        ).exists()).scalar()
 
     @staticmethod
     def user_has_unassigned_tickets_for_event(event, user):
@@ -2607,6 +2632,11 @@ class EventReview(db.Model):
             .filter(EventReviewComment.id == comment_id) \
             .first()
 
+    def has_more_review_comments(self, cursor=None):
+        _cursor = copy.copy(cursor)
+        more_review_comments = self.get_review_comments(_cursor)
+        return len(more_review_comments) > 0
+
     def get_review_comments(self, cursor):
         query = db.session.query(EventReviewComment).options(
             joinedload(EventReviewComment.upvotes),
@@ -2620,7 +2650,7 @@ class EventReview(db.Model):
                 func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) < func.round(
                     cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(
                 func.round(cast(func.extract('EPOCH', EventReviewComment.created_at), Numeric), 3) > func.round(
                     cursor.get_before_as_float()), 3)
@@ -2629,9 +2659,11 @@ class EventReview(db.Model):
         if comments:
             cursor.set_before(comments[0].created_at)
             cursor.set_after(comments[-1].created_at)
+            cursor.set_has_more(self.has_more_review_comments(cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return comments
 
@@ -2969,6 +3001,11 @@ class EventReviewComment(db.Model):
         ).filter(EventReviewCommentResponse.id == response_id) \
             .first()
 
+    def has_more_responses(self, cursor=None):
+        _cursor = copy.copy(cursor)
+        more_responses = self.get_responses(_cursor)
+        return len(more_responses) > 0
+
     def get_responses(self, cursor):
         query = db.session.query(EventReviewCommentResponse).options(
             joinedload(EventReviewCommentResponse.upvotes),
@@ -2982,7 +3019,7 @@ class EventReviewComment(db.Model):
                 func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) < func.round(
                     cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(
                 func.round(cast(func.extract('EPOCH', EventReviewCommentResponse.created_at), Numeric), 3) > func.round(
                     cursor.get_before_as_float(), 3))
@@ -2992,9 +3029,11 @@ class EventReviewComment(db.Model):
         if responses:
             cursor.set_before(responses[0].created_at)
             cursor.set_after(responses[-1].created_at)
+            cursor.set_has_more(self.has_more_responses(cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return responses
 
@@ -3540,6 +3579,12 @@ class Brand(db.Model):
         return db.session.query(db.session.query(Brand).filter(Brand.id == brand_id).exists()).scalar()
 
     @classmethod
+    def has_more_brands(cls, category_id=None, searchterm=None, cursor=None):
+        _cursor = copy.copy(cursor)
+        more_brands = cls.get_brands(category_id, searchterm, _cursor)
+        return len(more_brands) > 0
+
+    @classmethod
     def get_brands(cls, category_id=None, searchterm=None, cursor=None):
         query = db.session.query(Brand)
 
@@ -3553,7 +3598,7 @@ class Brand(db.Model):
             query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) < func.round(
                 cursor.get_after_as_float(), 3))
 
-        if cursor and cursor.before:
+        elif cursor and cursor.before:
             query = query.filter(func.round(cast(func.extract('EPOCH', Brand.created_at), Numeric), 3) > func.round(
                 cursor.get_before_as_float(), 3))
 
@@ -3562,9 +3607,11 @@ class Brand(db.Model):
         if brands:
             cursor.set_before(brands[0].created_at)
             cursor.set_after(brands[-1].created_at)
+            cursor.set_has_more(cls.has_more_brands(category_id, searchterm, cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return brands
 
