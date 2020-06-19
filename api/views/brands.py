@@ -30,6 +30,7 @@ class BrandView(AuthBaseView):
                     'cursor': {
                         'before': cursor.before,
                         'after': cursor.after,
+                        'has_more': cursor.has_more,
                         'limit': cursor.limit
                     }
                 }
@@ -173,6 +174,7 @@ class BrandView(AuthBaseView):
                     "cursor": {
                         "before": cursor.before,
                         "after": cursor.after,
+                        "cursor": cursor.has_more,
                         "limit": cursor.limit
                     }
                 }

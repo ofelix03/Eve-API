@@ -67,13 +67,14 @@ class EventView(AuthBaseView):
                 if auth_user:
                     events = serializers.event_schema.dump(events, many=True)
                 else:
-                    event = serializers.event_anon_schema.dump(events, many=True)
+                    events = serializers.event_anon_schema.dump(events, many=True)
             payload.update({
                 'events': events,
                 'metadata': {
                     'cursor': {
                         'before': cursor.before,
                         'after': cursor.after,
+                        'has_more': cursor.has_more,
                         'limit': cursor.limit
                     }
                 }
@@ -99,6 +100,7 @@ class EventView(AuthBaseView):
                                 'cursor': {
                                     'before': cursor.before,
                                     'after': cursor.after,
+                                    'has_more': cursor.has_more,
                                     'limit': cursor.limit
                                 },
                             }
@@ -126,6 +128,7 @@ class EventView(AuthBaseView):
                             'cursor': {
                                 'before': cursor.before,
                                 'after': cursor.after,
+                                'has_more': cursor.has_more,
                                 'limit': cursor.limit
                             },
                         }
@@ -148,6 +151,7 @@ class EventView(AuthBaseView):
                         'cursor': {
                             'before': cursor.before,
                             'after': cursor.after,
+                            'has_more': cursor.has_more,
                             'limit': cursor.limit
                         },
                     }
@@ -162,6 +166,7 @@ class EventView(AuthBaseView):
                 "code": "CONTENT_NOT_FOUND",
             }, 204)
         event = models.Event.get_event(event_id)
+        print("myeventdetails##", event.venue_type)
         if auth_user:
             event = serializers.event_schema.dump(event)
         else:
@@ -780,11 +785,15 @@ class EventView(AuthBaseView):
 
             event = Event()
             event.user = Authenticator.get_instance().get_auth_user()
+            print('post##', data)
             if 'name' in data:
                 event.name = data.get('name')
 
             if 'venue' in data:
                 event.venue = data.get('venue')
+
+            if 'venue_type' in data:
+                event.venue_type = data.get('venue_type')
 
             if 'start_datetime' in data:
                 event.start_datetime = data.get('start_datetime')
@@ -845,6 +854,9 @@ class EventView(AuthBaseView):
 
                 if 'venue' in data:
                     event.venue = data.get('venue')
+
+                if 'venue_type' in data:
+                    event.venue_type = data.get('venue_type')
 
                 if 'start_datetime' in data:
                     event.start_datetime = data.get('start_datetime')
@@ -979,7 +991,6 @@ class EventView(AuthBaseView):
         try:
             data = request.get_json()
             data = serializers.create_event_review_schema.load(data)
-            print('data###', data)
             content = data['content']
             author = Authenticator.get_instance().get_auth_user()
             media = []
@@ -1053,6 +1064,7 @@ class EventView(AuthBaseView):
                     "cursor": {
                         "before": cursor.before,
                         "after": cursor.after,
+                        "has_more": cursor.has_more,
                         "limit": cursor.limit
                     }
                 }
@@ -1285,6 +1297,7 @@ class EventView(AuthBaseView):
                     'cursor': {
                         'before': cursor.before,
                         'after': cursor.after,
+                        'has_more': cursor.has_more,
                         'limit': cursor.limit
                     }
                 }
@@ -1557,6 +1570,7 @@ class EventView(AuthBaseView):
                     "cursor": {
                         "before": cursor.before,
                         "after": cursor.after,
+                        "has_more": cursor.has_more,
                         "limit": cursor.limit
                     }
                 }
@@ -1833,7 +1847,6 @@ class EventView(AuthBaseView):
             event = models.Event.get_event_only(event_id)
             tickets = []
             for ticket_type in event.ticket_types:
-                print("ticket_types##",ticket_type.id)
                 tickets.append({
                     'ticket_type': ticket_type,
                     'assigned_tickets': models.EventTicket.get_assigned_tickets_of_type(ticket_type, auth_user),
@@ -1869,6 +1882,7 @@ class EventView(AuthBaseView):
                     "cursor": {
                         "before": cursor.before,
                         "after": cursor.after,
+                        "has_more": cursor.has_more,
                         "limit": cursor.limit
                     }
                 }
@@ -1913,11 +1927,11 @@ class EventView(AuthBaseView):
                 "cursor": {
                     "before": cursor.before,
                     "after": cursor.after,
+                    "has_more": cursor.has_more,
                     "limit": cursor.limit
                 }
             }
         })
-
 
     @route('/<string:event_id>/media', methods=['POST'])
     def upload_media(self, event_id):
@@ -1929,7 +1943,6 @@ class EventView(AuthBaseView):
                     file_to_upload = request.files[key]
                     media_file = models.EventMedia.create()
                     resp = cloudinary_upload(file_to_upload, public_id=media_file.filename)
-                    print('resp##', resp)
                     media_file.add_format(resp['format'])
                     media_file.add_source_url(resp['url'])
                     media_file.add_public_id(resp['public_id'])
