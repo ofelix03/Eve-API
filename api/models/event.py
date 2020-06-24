@@ -18,8 +18,6 @@ from api.repositories import exceptions
 
 from api.models.domain.user_payment_info import DiscountTypes
 from api.utils import TicketDiscountOperator, TicketDiscountType, generate_slug
-from api.decorators import paginator
-
 
 
 from flask_sqlalchemy import SQLAlchemy
