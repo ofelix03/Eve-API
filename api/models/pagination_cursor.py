@@ -8,7 +8,7 @@ class BadCursorQuery(Exception):
 
 class PaginationCursor(object):
 
-    def __init__(self, cursor_before=None, cursor_limit=2, cursor_after=None):
+    def __init__(self, cursor_before=None, cursor_limit=30, cursor_after=None):
         self.before = cursor_before
         self.after = cursor_after
         self.limit = cursor_limit
