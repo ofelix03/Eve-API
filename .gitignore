@@ -1,7 +1,6 @@
 pgdata
 .idea
 venv
-api/alembic
 *.pyc
 ./*.pyc
 ./**/*.pyc
