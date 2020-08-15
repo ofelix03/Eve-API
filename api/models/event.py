@@ -3964,11 +3964,19 @@ class Notification(db.Model):
         if notifications:
             cursor.set_before(notifications[0].created_at)
             cursor.set_after(notifications[-1].created_at)
+            cursor.set_has_more(Notification.has_more_unread_notifications(user, cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return notifications
+
+    @staticmethod
+    def has_more_unread_notifications(user, cursor=None):
+        _cursor = copy.copy(cursor)
+        more_notifications = Notification.get_unread_notifications(user, _cursor)
+        return len(more_notifications) > 0
 
     @staticmethod
     def get_all_notifications(user, cursor):
@@ -3986,11 +3994,19 @@ class Notification(db.Model):
         if notifications:
             cursor.set_before(notifications[0].created_at)
             cursor.set_after(notifications[-1].created_at)
+            cursor.set_has_more(Notification.has_more_all_notifications(user, cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return notifications
+
+    @staticmethod
+    def has_more_all_notifications(user, cursor=None):
+        _cursor = copy.copy(cursor)
+        more_notifications = Notification.get_all_notifications(user, _cursor)
+        return len(more_notifications) > 0
 
     @staticmethod
     def get_read_notifications(user, cursor=None):
@@ -4010,11 +4026,19 @@ class Notification(db.Model):
         if notifications:
             cursor.set_before(notifications[0].created_at)
             cursor.set_after(notifications[-1].created_at)
+            cursor.set_has_more(Notification.has_more_read_notifications(user, cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return notifications
+
+    @staticmethod
+    def has_more_read_notifications(user, cursor=None):
+        _cursor = copy.copy(cursor)
+        more_notifications = Notification.get_read_notifications(user, _cursor)
+        return len(more_notifications) > 0
 
     @staticmethod
     def get_total_notifications(user):
