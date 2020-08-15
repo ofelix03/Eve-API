@@ -405,11 +405,18 @@ class User(db.Model):
         if events:
             cursor.set_before(events[0].created_at)
             cursor.set_after(events[-1].created_at)
+            cursor.set_has_more(self.has_more_created_events(cursor, is_published, is_not_published))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         return events
+
+    def has_more_created_events(self, cursor, is_published=True, is_not_published=True):
+        has_more_cursor = copy.copy(cursor)
+        events = self.get_created_events(cursor, is_published=is_published, is_not_published=is_not_published)
+        return len(events) > 0
 
     def get_created_events_count(self, is_published=True, is_not_published=True):
         query = db.session.query(Event) \
@@ -439,12 +446,19 @@ class User(db.Model):
         if len(bookmarks):
             cursor.set_before(bookmarks[0].created_at)
             cursor.set_after(bookmarks[-1].created_at)
+            cursor.set_has_more(self.has_more_bookmarked_events(cursor))
         else:
             cursor.set_before(None)
             cursor.set_after(None)
+            cursor.set_has_more(False)
 
         events = db.session.query(Event).filter(Event.id.in_(list(map(lambda bookmark: bookmark.event_id, bookmarks)))).all()
         return events
+
+    def has_more_bookmarked_events(self, cursor):
+        has_more_cursor = copy.copy(cursor)
+        events = self.get_bookmarked_events(cursor)
+        return len(events) > 0
 
     def get_bookmarked_events_count(self):
         return db.session.query(EventBookmark) \

@@ -256,6 +256,7 @@ class UserView(AuthBaseView):
                     "cursor": {
                         "before": cursor.before,
                         "after": cursor.after,
+                        "has_more": cursor.has_more,
                         "limit": cursor.limit
                     }
                 }
@@ -331,6 +332,7 @@ class UserView(AuthBaseView):
                     "cursor": {
                         "before": cursor.before,
                         "after": cursor.after,
+                        "has_more": cursor.has_more,
                         "limit": cursor.limit
                     }
                 }
