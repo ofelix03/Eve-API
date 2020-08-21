@@ -3,7 +3,7 @@ from enum import Enum
 import copy
 from datetime import datetime, timedelta
 from sqlalchemy.orm import joinedload, relation
-from sqlalchemy import func, or_, and_, text
+from sqlalchemy import func, or_, and_, text, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy import Boolean, Column
 from sqlalchemy import cast, Numeric
@@ -229,6 +229,7 @@ class User(db.Model):
 
         user = cls(name=name, image=image, email=email, password=password, country=country, country_code=country_code,
                    gender=gender, phone_number=phone_number, is_ghost=is_ghost)
+
         db.session.add(user)
         db.session.commit()
         return user
@@ -277,6 +278,16 @@ class User(db.Model):
     def has_email_n_password(email, password):
         return db.session.query(
             db.session.query(User).filter(User.email == email).filter(User.password == password).exists()).scalar()
+
+    def create_organizer(self):
+        """Creates the organizer account associated to this user"""
+        return EventOrganizer.create(user=self)
+
+    def update_organizer(self):
+        """Update the organizer account associated to this user"""
+        organizer = EventOrganizer.get_organizer_by_user_id(self.id)
+        organizer.update(user=self)
+        return organizer
 
     def has_login_session(self):
         return db.session.query(
@@ -604,6 +615,94 @@ class UserLoginHistory(db.Model):
             self.user = user
 
 
+event_organizers_rel = Table('event_organizers_rel', db.metadata,
+    db.Column('event_id', db.String, db.ForeignKey('events.id')),
+    db.Column('organizer_id', db.String, db.ForeignKey('event_organizers.id'))
+)
+
+
+class EventOrganizer(db.Model):
+    __tablename__ = 'event_organizers'
+
+    id = db.Column(db.String, primary_key=True)
+    name = db.Column(db.String, index=True)
+    image = db.Column(db.String)
+    website_url = db.Column(db.String)
+    user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete=CASCADE, onupdate=CASCADE))
+    user = relationship('User')
+    created_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime)
+    events = relationship("Event", secondary=event_organizers_rel, back_populates="organizers")
+
+    def __init__(self, name=None, website_url=None, image=None, user=None):
+        self.id = str(uuid.uuid4())
+        self.name = user.name if user else name
+        self.website_url = website_url
+        self.image = user.image if user else image
+        self.created_at = datetime.now()
+        self.user = user
+
+    @classmethod
+    def create(cls, name=None, website_url=None, image=None, user=None):
+        organizer = cls(name=name, website_url=website_url, image=image, user=user)
+        db.session.add(organizer)
+        db.session.commit()
+        return organizer
+
+    def update(self, name=None, website_url=None, image=None, user=None):
+        self.name = user.name if user else name
+        self.website_url = website_url
+        self.image = user.image if user else image
+        self.user = user
+        db.session.add(self)
+        db.session.commit()
+
+    def has_organizer(self, id):
+        return db.session.query(db.session.query(EventOrganizer)
+                                    .filter(EventOrganizer.id == id)
+                                    .exists()).scalar()
+    @staticmethod
+    def get_organizer(id):
+        return db.session.query(EventOrganizer).filter(EventOrganizer.id == id).first()
+
+    @staticmethod
+    def get_organizer_by_user_id(user_id):
+        return db.session.query(EventOrganizer).filter(EventOrganizer.user_id == user_id).first()
+
+    @staticmethod
+    def find_organizer_by_searchterm(searchterm):
+        if searchterm is None:
+            return []
+        searchterm = '%' + searchterm + '%'
+        organizers = db.session.query(EventOrganizer) \
+            .filter(User.name.ilike(searchterm)) \
+            .all()
+        return organizers
+
+
+# class EventOrganizer(db.Model):
+#     __tablename__ = 'event_organizers'
+#
+#     event_id = db.Column(db.String, db.ForeignKey('events.id'), primary_key=True)
+#     organizer_id = db.Column(db.String, db.ForeignKey('organizers.id'), primary_key=True)
+#
+# #
+# class EventOrganizer(db.Model):
+#     __tablename__ = 'event_organizers'
+#
+#     id = db.Column(db.String, primary_key=True, default=uuid.uuid4)
+#     event = relationship(Event)
+#     event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete='CASCADE', onupdate='CASCADE'))
+#     created_at = db.Column(db.DateTime, default=datetime.now())
+#     updated_at = db.Column(db.DateTime)
+#     user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete=CASCADE, onupdate=CASCADE))
+#     user = relationship('User')
+#
+#     def __init__(self, user=None):
+#         self.user = user
+
+
+
 class Event(db.Model):
     __tablename__ = 'events'
 
@@ -615,7 +714,9 @@ class Event(db.Model):
     start_datetime = db.Column(db.DateTime)
     end_datetime = db.Column(db.DateTime)
     cover_image = db.Column(db.String)
-    organizers = relationship('EventOrganizer', backref='events')
+    # organizers = relationship('EventOrganizer', backref='events')
+    # organizers = relationship('Event', secondary=event_organizers_rel, backref="event_organizers")
+    organizers = relationship("EventOrganizer", secondary=event_organizers_rel, back_populates="events")
     speakers = relationship('EventSpeaker', backref='events')
     media = relationship('EventMedia', backref='events')
     contact_info = relationship('EventContactInfo', backref='events')
@@ -947,6 +1048,7 @@ class Event(db.Model):
             db.session.query(EventOrganizer).filter(EventOrganizer.user_id == user.id).exists()).scalar()
 
     def clear_organizers(self):
+
         db.session.query(EventOrganizer).filter(EventOrganizer.event_id == self.id).delete()
         db.session.commit()
 
@@ -1300,20 +1402,6 @@ class Event(db.Model):
             EventMedia.poster == True).first()
         return image.source_url if image  else utils.NO_IMAGE
 
-
-class EventOrganizer(db.Model):
-    __tablename__ = 'event_organizers'
-
-    id = db.Column(db.String, primary_key=True, default=uuid.uuid4)
-    event = relationship(Event)
-    event_id = db.Column(db.String, db.ForeignKey('events.id', ondelete='CASCADE', onupdate='CASCADE'))
-    created_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime)
-    user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete=CASCADE, onupdate=CASCADE))
-    user = relationship('User')
-
-    def __init__(self, user=None):
-        self.user = user
 
 
 class EventMedia(db.Model):

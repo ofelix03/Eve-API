@@ -3,7 +3,7 @@ from marshmallow import ValidationError
 from api.views.auth_base import AuthBaseView, BaseView
 from api.repositories import exceptions
 from api.auth.authenticator import Authenticator, data_encryptor
-from api.models.event import User, UserLoginSession, Country, Notification
+from api.models.event import User, UserLoginSession, Country, Notification, EventOrganizer
 from api.models.domain.user_payment_info import CardPaymentInfo, MobilePaymentInfo, PaymentTypes
 from api import serializers
 
@@ -19,6 +19,16 @@ class UserView(AuthBaseView):
             'users': serializers.user_summary_schema.dump(users, many=True)
         })
 
+
+    @route('/request-password-change', methods=['POST'])
+    def request_password_change(self):
+        pass
+
+
+    @route('/change-password', methods=['POST'])
+    def change_password(self):
+        pass
+
     @route('/me/update-profile', methods=['PUT'])
     def update_user_profile(self):
         try:
@@ -26,7 +36,6 @@ class UserView(AuthBaseView):
 
             data = request.get_json()
             profile = User.get_user(auth_user.id)
-            print("updating user", profile)
 
             if 'name' in data and data['name'] != profile.name:
                 auth_user.name = data['name']
@@ -54,6 +63,7 @@ class UserView(AuthBaseView):
                 profile.image = data['image']
 
             profile.update()
+            profile.update_organizer()
             return response(serializers.user_schema.dump(profile))
         except exceptions.NotAuthUser:
             return self.not_auth_response()
@@ -83,6 +93,9 @@ class UserView(AuthBaseView):
             country = Country.get_country(country_id)
             user = User.create(name=name, email=email, password=password, country=country, gender=gender,
                                phone_number=phone_number)
+
+            user.create_organizer()
+
             return response(serializers.user_schema.dump(user))
         except exceptions.UserAlreadyExists:
             return response({

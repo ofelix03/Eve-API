@@ -166,7 +166,6 @@ class EventView(AuthBaseView):
                 "code": "CONTENT_NOT_FOUND",
             }, 204)
         event = models.Event.get_event(event_id)
-        print("myeventdetails##", event.venue_type)
         if auth_user:
             event = serializers.event_schema.dump(event)
         else:
@@ -183,6 +182,33 @@ class EventView(AuthBaseView):
             }, 204)
 
         return response('')
+
+    @route('/organizers/search', methods=['GET'])
+    def search_organizers(self):
+        if 'q' not in request.args:
+            return response({
+                "message": "Bad request",
+                "errors": {
+                    "q": "searchterm query missing"
+                }
+            })
+        searchterm = request.args['q']
+        organizers = EventOrganizer.find_organizer_by_searchterm(searchterm)
+        return response({
+            'ok': True,
+            'organizers': serializers.event_organizer_schema.dump(organizers, many=True)
+        })
+
+    @route('/organizers/<string:organizer_id>')
+    def get_event_organizer(self, organizer_id):
+        try:
+            organizer = EventOrganizer.get_organizer(organizer_id)
+            return response(serializers.event_organizer_schema.dump(organizer))
+        except exceptions.UserNotFound:
+            return response({
+                'ok': False,
+                'code': 'ORGANIZER_NOT_FOUND'
+            }, 404)
 
     @route('/<string:event_id>/ticket_types', methods=['GET'])
     def get_ticket_types(self, event_id):
@@ -815,11 +841,8 @@ class EventView(AuthBaseView):
             if 'organizers' in data:
                 for organizer in data['organizers']:
                     if 'id' in organizer:
-                        user = models.User.get_user(organizer['id'])
-                        event.organizers.append(EventOrganizer(user=user))
-                    elif 'email' in organizer:  # this is a ghost user
-                        user = models.User.create_ghost_user(organizer['email'])
-                        event.organizers.append(EventOrganizer(user=user))
+                        organizer = models.EventOrganizer.get_organizer(organizer['id'])
+                        event.organizers.append(organizer)
 
             if 'contact_info' in data:
                 for contact in data.get('contact_info'):
@@ -846,7 +869,7 @@ class EventView(AuthBaseView):
                 if event.user.id != auth_user.id:
                     return response({
                         "ok": False,
-                        "code": "UNATHORIZED_USER_ACTION"
+                        "code": "UNAUTHORIZED_USER_ACTION"
                     }, 400)
 
                 if 'name' in data:
@@ -874,22 +897,22 @@ class EventView(AuthBaseView):
                         event.category = category
 
                 if 'organizers' in data:
-                    if data['organizers']:
-                        event.clear_organizers()
+                    if event.organizers:
+                        for organizer in event.organizers:
+                            event.organizers.remove(organizer)
 
                     for organizer in data['organizers']:
                         if 'id' in organizer:
-                            user = models.User.get_user(organizer['id'])
-                            event.organizers.append(EventOrganizer(user=user))
-                        elif 'email' in organizer:  # this is a ghost user
-                            user = models.User.create_ghost_user(organizer['email'])
-                            event.organizers.append(EventOrganizer(user=user))
+                            organizer = models.EventOrganizer.get_organizer_by_user_id(organizer['id'])
+                            event.organizers.append(organizer)
+                print("event.organizers##", event.organizers)
 
                 if 'contact_info' in data:
-                    if data['contact_info']:
-                        event.clear_contact_infos()
+                    # if event.contact_info:
+                    #     for contact in event.contact_info:
+                    #         event.contact_info.remove(contact)
 
-                    for contact in data.get('contact_info'):
+                    for contact in data['contact_info']:
                         if 'type' in contact and contact['type']:
                             event.contact_info.append(EventContactInfo(type=contact['type'], info=contact['info']))
 

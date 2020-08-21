@@ -7,7 +7,7 @@
 # session = Session()
 
 
-SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:123@db:5432/Eve2'
-#SQLALCHEMY_DATABASE_URI = 'postgresql://postgres@127.0.0.1:5432/Eve2'
+#SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:123@db:5432/Eve2'
+SQLALCHEMY_DATABASE_URI = 'postgresql://postgres@127.0.0.1:5432/Eve2'
 SQLALCHEMY_ECHO = True
 SQLALCHEMY_TRACK_MODIFICATIONS = False

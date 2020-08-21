@@ -21,12 +21,20 @@ class EventTicketTypeSchema(Schema):
     discounts = fields.Function(lambda type: TicketTypeDiscountSchema().dump(type.get_discounts(), many=True))
 
 
+# class EventOrganizerSchema(Schema):
+#     id = fields.Function(lambda organizer: organizer.user_id, required=True)
+#     name = fields.Function(lambda organizer: organizer.user.email if organizer.user.is_ghost else organizer.user.name, required=True )
+#     image = fields.Function(lambda organizer: None if organizer.user.is_ghost else organizer.user.image, required=True)
+#     is_ghost = fields.Function(lambda organizer: organizer.user.is_ghost, required=True)
+#     email = fields.Function(lambda organizer: organizer.user.email, required=True)
+
+
 class EventOrganizerSchema(Schema):
-    id = fields.Function(lambda organizer: organizer.user_id, required=True)
-    name = fields.Function(lambda organizer: organizer.user.email if organizer.user.is_ghost else organizer.user.name, required=True )
-    image = fields.Function(lambda organizer: None if organizer.user.is_ghost else organizer.user.image, required=True)
-    is_ghost = fields.Function(lambda organizer: organizer.user.is_ghost, required=True)
-    email = fields.Function(lambda organizer: organizer.user.email, required=True)
+    id = fields.String(required=True, dump_only=True)
+    name = fields.String()
+    website_url = fields.String()
+    image = fields.String()
+    is_user = fields.Function(lambda o: bool(o))
 
 
 class SocialAccountSchema(Schema):
