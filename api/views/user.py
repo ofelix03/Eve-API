@@ -3,79 +3,112 @@ from marshmallow import ValidationError
 from api.views.auth_base import AuthBaseView, BaseView
 from api.repositories import exceptions
 from api.auth.authenticator import Authenticator, data_encryptor
-from api.models.event import User, UserLoginSession, Country, Notification, EventOrganizer
+from api.models.event import User, UserLoginSession, Country, Notification, EventOrganizer, PasswordChange
 from api.models.domain.user_payment_info import CardPaymentInfo, MobilePaymentInfo, PaymentTypes
+from api.decorators.auth import only_auth_user
 from api import serializers
 
-from api import utils
+from api.utils import general as general_utils
 
 
 class UserView(AuthBaseView):
 
+    @only_auth_user
     def index(self):
-        users = User.get_users()
+        users = [Authenticator.get_instance().get_auth_user()]
         return response({
             'ok': True,
             'users': serializers.user_summary_schema.dump(users, many=True)
         })
 
-
     @route('/request-password-change', methods=['POST'])
     def request_password_change(self):
-        pass
-
+        try:
+            data = serializers.request_user_password_change_schema.load(request.get_json())
+            email = data['email']
+            if User.get_user_by_email(email):
+                user = User.get_user_by_email(email)
+                user.request_password_change()
+                return response({
+                    'ok': True,
+                })
+        except ValidationError:
+            return response({
+                "ok": False,
+                "code": "BAD PAYLOAD"
+            }, 400)
 
     @route('/change-password', methods=['POST'])
     def change_password(self):
-        pass
+        try:
+            data = serializers.change_user_password_with_code_schema.load(request.get_json())
+            code = data['code']
+            password = data['password']
+            password_confirmation = data['password_confirmation']
+            if PasswordChange.has_active_code(code):
+                password_change = PasswordChange.get_password_change(code)
+                password_change.user.change_password(password, password_confirmation)
+                password_change.mark_password_changed()
+                return response({
+                    "ok": True
+                })
+            else:
+                return response({
+                    "ok": False,
+                    "code": "PASSWORD_CHANGE_CODE_EXPIRED"
+                })
+        except exceptions.UserHasAlreadyUsedPassword:
+            return response({
+                "ok": False,
+                "code": "PASSWORD_USED_BEFORE"
+            }, 400)
+        except ValidationError:
+            return response({
+                "ok": False,
+                "code": "BAD_PAYLOAD",
+            }, 400)
 
     @route('/me/update-profile', methods=['PUT'])
     def update_user_profile(self):
-        try:
-            auth_user = Authenticator.get_instance().get_auth_user()
+        auth_user = Authenticator.get_instance().get_auth_user()
 
-            data = request.get_json()
-            profile = User.get_user(auth_user.id)
+        data = request.get_json()
+        profile = User.get_user(auth_user.id)
 
-            if 'name' in data and data['name'] != profile.name:
-                auth_user.name = data['name']
+        if 'name' in data and data['name'] != profile.name:
+            auth_user.name = data['name']
 
-            if 'email' in data and data['email'] != profile.email:
-                profile.email = data['email']
+        if 'email' in data and data['email'] != profile.email:
+            profile.email = data['email']
 
-            if 'phone_number' in data and data['phone_number'] != profile.phone_number:
-                profile.phone_number = data['phone_number']
+        if 'phone_number' in data and data['phone_number'] != profile.phone_number:
+            profile.phone_number = data['phone_number']
 
-            if 'country_id' in data and data['country_id'] != profile.country_id:
-                country_id = data['country_id']
-                if not Country.has_country(country_id):
-                    return response({
-                        "errors": {
-                            "message": "Country not found"
-                        }
-                    }, 400)
-                profile.country = Country.get_country(country_id)
+        if 'country_id' in data and data['country_id'] != profile.country_id:
+            country_id = data['country_id']
+            if not Country.has_country(country_id):
+                return response({
+                    "errors": {
+                        "message": "Country not found"
+                    }
+                }, 400)
+            profile.country = Country.get_country(country_id)
 
-            if 'country_code' in data:
-                pass
+        if 'country_code' in data:
+            pass
 
-            if 'image' in data:
-                profile.image = data['image']
+        if 'image' in data:
+            profile.image = data['image']
 
-            profile.update()
-            profile.update_organizer()
-            return response(serializers.user_schema.dump(profile))
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
-
-    def delete(self, user_id=None):
-        pass
+        profile.update()
+        profile.update_organizer()
+        return response(serializers.user_schema.dump(profile))
 
     def post(self):
         data = request.get_json()
         try:
             data = serializers.create_user_schema.dump(data)
-            password = utils.hash_password(data['password'])
+            password = general_utils.hash_password(data['password'])
 
             name = data['name']
             email = data['email']
@@ -118,7 +151,6 @@ class UserView(AuthBaseView):
             user.remove_login_session()
         return response("")
 
-
     @route('/login', methods=['POST'])
     def login_user(self):
         try:
@@ -136,7 +168,7 @@ class UserView(AuthBaseView):
 
             user = User.get_user_by_email(email)
 
-            if not utils.check_password(password, user.password):
+            if not general_utils.check_password(password, user.password):
                 return response({
                     "ok": False,
                     "errors": {
@@ -146,7 +178,7 @@ class UserView(AuthBaseView):
 
             session_user = serializers.logged_in_user_schema.dump(user)
             if not user.has_login_session():
-                session_token = data_encryptor.encrypt(session_user, utils.ENCRYPTION_KEY)
+                session_token = data_encryptor.encrypt(session_user, general_utils.ENCRYPTION_KEY)
                 user.login_session = [UserLoginSession(session_token=session_token, user=user)]
                 user.update()
             else:
@@ -176,7 +208,9 @@ class UserView(AuthBaseView):
             new_password_confirmation = data['new_password_confirmation']
 
             auth_user.change_password(new_password, new_password_confirmation)
-            return response(None)
+            return response({
+                "ok": True
+            })
         except ValidationError as e:
             return response({
                 "ok": False,
@@ -187,12 +221,6 @@ class UserView(AuthBaseView):
                 'ok': False,
                 'code': 'USER_PASSWORD_CONFIRMATION_MISMATCH'
             }, 400)
-        except exceptions.NotAuthUser:
-            return self.not_auth_response()
-
-    @route('/me/new-password-request', methods=['GET'])
-    def reset_password_send_link_notification(self):
-        pass
 
     @route('/<string:user_id>')
     def get_user(self, user_id):
@@ -524,7 +552,7 @@ class UserView(AuthBaseView):
             if PaymentTypes.CARD == payment_type:
                 serializers.card_payment_info_schema.load(data)
                 card_expiration_date = data['card_expiration_date']
-                card_expiration_date = utils.parse_card_expiration_date(card_expiration_date)
+                card_expiration_date = general_utils.parse_card_expiration_date(card_expiration_date)
                 card_info = CardPaymentInfo(card_name=data['card_name'],
                                             card_type=data['card_type'],
                                             card_number=data['card_number'],

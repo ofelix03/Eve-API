@@ -12,7 +12,6 @@ class GeneralView(FlaskView):
     @route('/reverse-geocode', methods=['POST'])
     def reverse_geocode(self):
         data = request.get_json()
-        print
         if 'latitude' not in data or 'longitude' not in data:
             return response({
                 "ok": "false",

@@ -1,4 +1,3 @@
-
 import bcrypt
 from datetime import date, datetime
 from marshmallow.fields import Field
@@ -7,6 +6,12 @@ import base64
 
 from api.repositories.exceptions import InvalidCardExpirationDateFmt
 
+APP_NAME = "Eve"
+
+APP_BASE_URL = "http://127.0.0.1:8000"
+CLIENT_BASE_URL = "http://127.0.0.1:4300"
+
+MEDIA_DIR = '/home/felix/Desktop/EVE_MEDIA'
 
 ENCRYPTION_KEY = 'r4e7SulNhTkt0T_QWtB0tHQ6OJYUSHC93alsL7s8ALI'
 AUTH_USER_ID = '097d05c3-de53-4de4-9efa-ef71cd64cb11'
@@ -72,9 +77,6 @@ def gen_image_filename(uid):
     return base64.b32encode(uid.encode())[:7].decode()
 
 
-MEDIA_DIR = '/home/felix/Desktop/EVE_MEDIA'
-
-
 
 
 def founder_url_explode(founder_str):
@@ -84,3 +86,7 @@ def founder_url_explode(founder_str):
     if len(founder_url_list) > 1:
         return founder_url_list[0], founder_url_list[1]
     return founder_url_list[0], None
+
+
+def generate_slug(url):
+    return slugify(url, to_lower=True)

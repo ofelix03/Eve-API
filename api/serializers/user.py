@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields
 from api.auth.authenticator import Authenticator
-from api.utils import CardExpirationDateField
+from api.utils.general import CardExpirationDateField
 
 
 class CountrySerializer(Schema):
@@ -102,3 +102,12 @@ class LoginUserSchema(Schema):
     email = fields.String(required=True)
     password = fields.String(required=True)
 
+
+class RequestPasswordChangeSchema(Schema):
+    email = fields.String(required=True)
+
+
+class ChangePasswordWithCodeSchema(Schema):
+    code = fields.String(required=True)
+    password = fields.String(required=True)
+    password_confirmation = fields.String(required=True)

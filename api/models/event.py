@@ -1,6 +1,7 @@
 import uuid, random
 from enum import Enum
 import copy
+import hashlib
 from datetime import datetime, timedelta
 from sqlalchemy.orm import joinedload, relation
 from sqlalchemy import func, or_, and_, text, Table
@@ -17,11 +18,10 @@ from api.exceptions import payments as payment_exceptions
 from api.repositories import exceptions
 
 from api.models.domain.user_payment_info import DiscountTypes
-from api.utils import TicketDiscountOperator, TicketDiscountType, generate_slug
 
+from api.utils import mailer, general as general_utils
 
 from flask_sqlalchemy import SQLAlchemy
-
 
 DEFAULT_IMAGE = "https://res.cloudinary.com/ofelix03/image/upload/v1585692212/asssets/no-image.jpg"
 
@@ -192,9 +192,9 @@ class User(db.Model):
         if image:
             self.image = image
         elif gender in ('male', 'm'):
-            self.image = utils.MALE_PROFILE_IMAGE
+            self.image = general_utils.MALE_PROFILE_IMAGE
         elif gender in ('female', 'f'):
-            self.image = utils.FEMALE_PROFILE_IMAGE
+            self.image = general_utils.FEMALE_PROFILE_IMAGE
 
         if name:
             self.name = name
@@ -248,11 +248,15 @@ class User(db.Model):
     def change_password(self, new_password, new_password_confirmation):
         if new_password != new_password_confirmation:
             raise exceptions.user.PasswordConfirmationMismatch()
-        self.password = utils.hash_password(new_password)
+
+        self.password = general_utils.hash_password(new_password)
+        if self.checked_password_used_before(self.password):
+            raise exceptions.UserHasAlreadyUsedPassword()
+
         db.session.commit()
 
     def has_password(self, password):
-        return utils.check_password(self.password, password)
+        return general_utils.check_password(self.password, password)
 
     @classmethod
     def get_user(cls, user_id):
@@ -369,10 +373,12 @@ class User(db.Model):
         query = db.session.query(Event).filter(Event.id.in_(event_ids_query))
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(cursor.get_after_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) < func.round(
+                cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(cursor.get_before_as_float(), 3))
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(
+                cursor.get_before_as_float(), 3))
 
         events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
 
@@ -399,9 +405,9 @@ class User(db.Model):
             .filter(Event.user_id == self.id)
 
         if is_published and not is_not_published:
-            query = query.filter(Event.is_published==True)
+            query = query.filter(Event.is_published == True)
         elif not is_published and is_not_published:
-            query = query.filter(Event.is_published==False)
+            query = query.filter(Event.is_published == False)
 
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
@@ -434,9 +440,9 @@ class User(db.Model):
             .filter(Event.user_id == self.id)
 
         if is_published and not is_not_published:
-            query = query.filter(Event.is_published==True)
+            query = query.filter(Event.is_published == True)
         elif is_not_published and not is_published:
-            query = query.filter(Event.is_published==False)
+            query = query.filter(Event.is_published == False)
         return query.count()
 
     def get_bookmarked_events(self, cursor):
@@ -445,8 +451,9 @@ class User(db.Model):
             .filter(EventBookmark.user_id == self.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', EventBookmark.created_at), Numeric), 3) < func.round(
-                cursor.get_after_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', EventBookmark.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3) > func.round(
@@ -463,7 +470,8 @@ class User(db.Model):
             cursor.set_after(None)
             cursor.set_has_more(False)
 
-        events = db.session.query(Event).filter(Event.id.in_(list(map(lambda bookmark: bookmark.event_id, bookmarks)))).all()
+        events = db.session.query(Event).filter(
+            Event.id.in_(list(map(lambda bookmark: bookmark.event_id, bookmarks)))).all()
         return events
 
     def has_more_bookmarked_events(self, cursor):
@@ -562,6 +570,18 @@ class User(db.Model):
             raise exceptions.PaymentAccountDoesNotExist()
         UserPaymentDetails.remove_payment_account(account_id)
 
+    def request_password_change(self):
+        password_change = PasswordChange.create(self)
+        return password_change.send_email_password_change_code()
+
+    def checked_password_used_before(self, new_password):
+        """
+        Checks users password change history to see if user has already used this password before.
+        :return: True|False
+        """
+        return db.session.query(
+            db.session.query(PasswordChange).filter(PasswordChange.current_password == new_password).exists()).scalar()
+
 
 class UserLoginSession(db.Model):
     __tablename__ = 'user_login_sessions'
@@ -616,9 +636,9 @@ class UserLoginHistory(db.Model):
 
 
 event_organizers_rel = Table('event_organizers_rel', db.metadata,
-    db.Column('event_id', db.String, db.ForeignKey('events.id')),
-    db.Column('organizer_id', db.String, db.ForeignKey('event_organizers.id'))
-)
+                             db.Column('event_id', db.String, db.ForeignKey('events.id')),
+                             db.Column('organizer_id', db.String, db.ForeignKey('event_organizers.id'))
+                             )
 
 
 class EventOrganizer(db.Model):
@@ -659,8 +679,9 @@ class EventOrganizer(db.Model):
 
     def has_organizer(self, id):
         return db.session.query(db.session.query(EventOrganizer)
-                                    .filter(EventOrganizer.id == id)
-                                    .exists()).scalar()
+                                .filter(EventOrganizer.id == id)
+                                .exists()).scalar()
+
     @staticmethod
     def get_organizer(id):
         return db.session.query(EventOrganizer).filter(EventOrganizer.id == id).first()
@@ -700,7 +721,6 @@ class EventOrganizer(db.Model):
 #
 #     def __init__(self, user=None):
 #         self.user = user
-
 
 
 class Event(db.Model):
@@ -846,7 +866,7 @@ class Event(db.Model):
         query = db.session.query(Event)
 
         if is_published:
-            query= query.filter(Event.is_published==True)
+            query = query.filter(Event.is_published == True)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -900,7 +920,7 @@ class Event(db.Model):
         )
 
         if is_published:
-            query = query.filter(Event.is_published==True)
+            query = query.filter(Event.is_published == True)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -965,7 +985,7 @@ class Event(db.Model):
         query = db.session.query(Event)
 
         if is_published:
-            query = query.filter(Event.is_published==True)
+            query = query.filter(Event.is_published == True)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -1285,7 +1305,8 @@ class Event(db.Model):
     @staticmethod
     def search_for_events(searchterm=None, category=None, period=None, country=None, cursor=None, is_published=True):
         # @todo use a more advance db.Text search tool
-        query = db.session.query(Event).filter(Event.is_published==is_published).filter(Event.name.ilike('%' + searchterm + '%'))
+        query = db.session.query(Event).filter(Event.is_published == is_published).filter(
+            Event.name.ilike('%' + searchterm + '%'))
 
         if category and category != 'all':
             query = query.filter(Event.category_id == category.id)
@@ -1318,7 +1339,7 @@ class Event(db.Model):
 
         if cursor and cursor.after:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
-                                 < func.round( cursor.get_after_as_float(), 3))
+                                 < func.round(cursor.get_after_as_float(), 3))
 
         elif cursor and cursor.before:
             query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
@@ -1400,8 +1421,7 @@ class Event(db.Model):
     def get_poster(self):
         image = db.session.query(EventMedia).filter(EventMedia.event_id == self.id).filter(
             EventMedia.poster == True).first()
-        return image.source_url if image  else utils.NO_IMAGE
-
+        return image.source_url if image else utils.NO_IMAGE
 
 
 class EventMedia(db.Model):
@@ -1475,7 +1495,7 @@ class EventSpeaker(db.Model):
     updated_at = db.Column(db.DateTime)
 
     def __init__(self, name=None, social_account_id=None, social_account=None, social_account_handle=None,
-                 profession_id=None, profession=None, event=None, event_id=None, image=utils.NO_IMAGE):
+                 profession_id=None, profession=None, event=None, event_id=None, image=general_utils.NO_IMAGE):
         self.id = str(uuid.uuid4())
         self.name = name
         self.social_media_id = social_account_id
@@ -1504,7 +1524,7 @@ class EventSpeaker(db.Model):
         return db.session.query(EventSpeaker).filter(EventSpeaker.id == speaker_id).first()
 
     def update(self, name=None, social_account_id=None, social_account=None, social_account_handle=None,
-               profession_id=None, profession=None, event=None, event_id=None, image=utils.NO_IMAGE):
+               profession_id=None, profession=None, event=None, event_id=None, image=general_utils.NO_IMAGE):
         self.name = name
         self.social_media_id = social_account_id
         self.social_account = social_account
@@ -1541,12 +1561,12 @@ class EventCategory(db.Model):
     slug = db.Column(db.String)
     created_at = db.Column(db.DateTime)
 
-    def __init__(self, name=None, image=utils.NO_IMAGE):
+    def __init__(self, name=None, image=general_utils.NO_IMAGE):
         self.id = str(uuid.uuid4())
         self.name = name
         self.image = image
         self.created = datetime.now()
-        self.slug = generate_slug(name)
+        self.slug = general_utils.generate_slug(name)
 
     @classmethod
     def create(cls, name=None, image=None):
@@ -2046,7 +2066,7 @@ class EventTicketSaleOrder(db.Model):
 
     def __init__(self, event_id=None, event=None, sale_lines=None, customer=None):
         self.id = str(uuid.uuid4())
-        self.ref = utils.gen_po_ref(self.id)
+        self.ref = general_utils.gen_po_ref(self.id)
 
         if event_id:
             self.event_id = event_id
@@ -2783,7 +2803,7 @@ class EventReviewMedia(db.Model):
 
     def __init__(self, source_url=None, format=None, event=None, is_poster=False):
         self.id = str(uuid.uuid4())
-        self.filename = utils.gen_image_filename(self.id)
+        self.filename = general_utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
         self.event = event
@@ -3159,7 +3179,7 @@ class EventReviewCommentMedia(db.Model):
     def __init__(self, source_url=None, format=None, event=None, is_poster=False):
         self.id = str(uuid.uuid4())
         self.created_at = datetime.now()
-        self.filename = utils.gen_image_filename(self.id)
+        self.filename = general_utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
         self.event = event
@@ -3334,7 +3354,7 @@ class EventReviewCommentResponseMedia(db.Model):
     def __init__(self, source_url=None, format=None, event=None, is_poster=False):
         self.id = str(uuid.uuid4())
         self.created_at = datetime.now()
-        self.filename = utils.gen_image_filename(self.id)
+        self.filename = general_utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
         self.event = event
@@ -3651,7 +3671,8 @@ class Brand(db.Model):
     founders = relationship('BrandFounder')
     website_link = db.Column(db.String)
 
-    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=utils.NO_IMAGE, founders=None,
+    def __init__(self, name=None, description=None, country=None, creator=None, category=None, image=general_utils.NO_IMAGE,
+                 founders=None,
                  founded_date=None, website_link=None):
         self.id = str(uuid.uuid4())
         self.created_at = datetime.now()
@@ -4054,12 +4075,14 @@ class Notification(db.Model):
             .filter(Notification.recipient_id == user.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
-                cursor.get_after_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
-                cursor.get_before_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
+                    cursor.get_before_as_float(), 3))
 
         notifications = query.order_by(Notification.created_at.desc()).limit(cursor.limit).all()
 
@@ -4085,12 +4108,14 @@ class Notification(db.Model):
         query = db.session.query(Notification).filter(Notification.recipient_id == user.id)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
-                cursor.get_after_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
-                cursor.get_before_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
+                    cursor.get_before_as_float(), 3))
 
         notifications = query.order_by(Notification.created_at.desc()).limit(cursor.limit).all()
         if notifications:
@@ -4117,12 +4142,14 @@ class Notification(db.Model):
             .filter(Notification.is_read == True)
 
         if cursor and cursor.after:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
-                cursor.get_after_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) < func.round(
+                    cursor.get_after_as_float(), 3))
 
         if cursor and cursor.before:
-            query = query.filter(func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
-                cursor.get_before_as_float(), 3))
+            query = query.filter(
+                func.round(cast(func.extract('EPOCH', Notification.created_at), Numeric), 3) > func.round(
+                    cursor.get_before_as_float(), 3))
 
         notifications = query.order_by(Notification.created_at.desc()).limit(cursor.limit).all()
         if notifications:
@@ -4168,8 +4195,85 @@ class Notification(db.Model):
 
     @staticmethod
     def get_notification(notification_id):
-        return db.session.query(Notification).filter(Notification.id==notification_id).first()
+        return db.session.query(Notification).filter(Notification.id == notification_id).first()
 
     @staticmethod
     def get_notifications(notification_ids):
         return db.session.query(Notification).filter(Notification.id.in_(notification_ids)).all()
+
+
+class PasswordChange(db.Model):
+    __tablename__ = 'password_changes'
+
+    CODE_EXPIRATION_PERIOD = 1440  # 1 day, expressed in minutes
+
+    message = '''
+                   <p>Dear {name}</p>
+
+                   <p>You requested to reset your password. 
+                   Kindly click the link below to complete this request</p>
+                   <p><a href="{link}">Change Password</a></p>
+                   
+                   <p>Note that the above link expires after 24 hours </p>
+
+                   <p>Please ignore this email if you do not recall requesting to reset your password</p>
+
+                   <p><i>This is a system generated email. Please do not respond to this</i></p>
+               '''
+
+    id = db.Column(db.String, primary_key=True)
+    code = db.Column(db.String)
+    created_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime)
+    current_password = db.Column(db.String)
+    user_id = db.Column(db.String, db.ForeignKey('users.id', ondelete=CASCADE, onupdate=CASCADE))
+    user = relationship('User')
+    password_changed = db.Column(db.Boolean, default=False)
+
+    def __init__(self, user=None):
+        self.id = str(uuid.uuid4())
+        self.code = hashlib.sha256(str(uuid.uuid4()).encode('utf-8')).hexdigest()
+        self.current_password = user.password
+        self.created_at = datetime.now()
+        self.user = user
+
+    @classmethod
+    def create(cls, user):
+        password_change = cls(user)
+        db.session.add(password_change)
+        db.session.commit()
+        return password_change
+
+    @staticmethod
+    def has_code(code):
+        return db.session.query(db.session.query(PasswordChange).filter(PasswordChange.code == code).exists()).scalar()
+
+    @staticmethod
+    def get_password_change(code):
+        return db.session.query(PasswordChange).filter(PasswordChange.code == code) \
+            .filter(PasswordChange.password_changed == False).first()
+
+    @classmethod
+    def has_active_code(cls, code):
+        password_change = cls.get_password_change(code)
+        if password_change:
+            minutes_elapsed = (datetime.now() - password_change.created_at).seconds / 60
+            print("minute_elapse##", minutes_elapsed, cls.CODE_EXPIRATION_PERIOD)
+            if minutes_elapsed < cls.CODE_EXPIRATION_PERIOD:
+                return password_change
+        return False
+
+    def send_email_password_change_code(self, subject="You Have Requested A Password Reset"):
+        link = "".join([general_utils.CLIENT_BASE_URL, "/", "users", "/", "change-password", "?ref=", self.code])
+        subject = general_utils.APP_NAME + ": " + subject
+        name = self.user.name.split(" ")[0]
+        message = PasswordChange.message.format(name=name, link=link)
+        mailer.send_email(email_to=self.user.email, subject=subject, message=message)
+
+        return True
+
+    def mark_password_changed(self):
+        self.updated_at = datetime.now()
+        self.password_changed = True
+        db.session.add(self)
+        db.session.commit()

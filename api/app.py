@@ -17,7 +17,7 @@ from api.views.general import GeneralView
 from api.views.places_autocomplete import PlacesAutocompleteView
 from api.models.event import db
 from api import db_config
-from api import utils
+from api.utils import general as general_utils
 
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
@@ -32,7 +32,7 @@ def create_app():
 app = create_app()
 
 cors = CORS(app, resources={r"/*": {"origins": "*"}})
-app.config['UPLOAD_FOLDER'] = utils.MEDIA_DIR
+app.config['UPLOAD_FOLDER'] = general_utils.MEDIA_DIR
 
 ImagesView.register(app, route_base='images')
 EventCategoryView.register(app, route_base='event-categories')

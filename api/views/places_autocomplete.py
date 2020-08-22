@@ -2,7 +2,7 @@ from marshmallow import ValidationError
 
 from . import *
 import googlemaps
-from ..utils import GOOGLE_CLOUD_API_KEY
+from ..utils.general import GOOGLE_CLOUD_API_KEY
 
 
 class PlacesAutocompleteView(FlaskView):

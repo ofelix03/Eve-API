@@ -2,7 +2,6 @@ from . import payments
 from . import user
 
 
-
 class BaseException(Exception):
 
     def __init__(self, message=None):
@@ -114,7 +113,6 @@ class UserAlreadyExists(Exception):
 
 class UserIsGhost(Exception):
     pass
-
 
 # PaymentDetails
 class NoPaymentDetailsFound(Exception):

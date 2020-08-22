@@ -194,3 +194,6 @@ class PasswordConfirmationMismatch(Exception):
 
 class UserNotFound(Exception):
     pass
+
+class UserHasAlreadyUsedPassword(Exception):
+    pass

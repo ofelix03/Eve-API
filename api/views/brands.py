@@ -5,7 +5,7 @@ from marshmallow.exceptions import ValidationError
 from api.serializers.brand import BrandSchema, CreateBrandSchema, BrandValidationSchema
 from api.models.event import Brand, BrandCategory, BrandValidation, BrandMedia, BrandFounder
 from api.repositories import exceptions
-from api import utils
+from api.utils import general as general_utils
 
 brand_schema = BrandSchema()
 create_brand_schema = CreateBrandSchema()
@@ -72,7 +72,7 @@ class BrandView(AuthBaseView):
             founders = data['founder']
             brand_founders = []
             for founder in founders:
-                [founder, founder_url] = utils.founder_url_explode(founder)
+                [founder, founder_url] = general_utils.founder_url_explode(founder)
                 brand_founders.append(BrandFounder(name=founder, url=founder_url))
 
             founded_date = data['founded_date']
@@ -120,7 +120,7 @@ class BrandView(AuthBaseView):
                 founders = data['founder']
                 brand_founders = []
                 for founder in founders:
-                    [founder, founder_url] = utils.founder_url_explode(str(founder))
+                    [founder, founder_url] = general_utils.founder_url_explode(str(founder))
                     brand_founders.append(BrandFounder(name=founder, url=founder_url))
                 brand.founders = brand_founders
 

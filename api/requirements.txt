@@ -34,4 +34,5 @@ Werkzeug==0.14.1
 factory_boy
 googlemaps
 awesome-slugify
+python-dotenv
 

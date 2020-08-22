@@ -1,5 +1,5 @@
 from api.auth.data_encryptor import DataEncryptor
-from api import utils
+from api.utils import general as general_utils
 from api.models import event as models
 from api.repositories.exceptions import NotAuthUser
 
@@ -28,7 +28,7 @@ class Authenticator:
 		token = ""
 		if 'Authorization' in request.headers and request.headers['Authorization'] is not None:
 			token = self.strip_bearer(request.headers['Authorization'])
-		claims = data_encryptor.decrypt(token, key=utils.ENCRYPTION_KEY)
+		claims = data_encryptor.decrypt(token, key=general_utils.ENCRYPTION_KEY)
 		if claims:
 			user = models.User.get_user(claims['id'])
 			user_login_session = user.get_login_session()

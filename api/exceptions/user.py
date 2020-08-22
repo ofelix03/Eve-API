@@ -8,3 +8,6 @@ class PasswordConfirmationMismatch(Exception):
 
 class UserNotFound(Exception):
     pass
+
+class UsedPasswordBefore(Exception):
+    pass

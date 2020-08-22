@@ -18,7 +18,7 @@ from api.libs.cloudinary import api as cloudinary_api
 
 from api.repositories import exceptions
 import api.serializers as serializers
-from api.utils import TicketDiscountOperator, TicketDiscountType
+from api.utils.event import TicketDiscountOperator, TicketDiscountType
 from api.models.domain.user_payment_info import DiscountTypes
 from . import *
 from ..models.pagination_cursor import PaginationCursor
