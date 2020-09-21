@@ -51,9 +51,9 @@ class UserSummarySchema(Schema):
     email = fields.String(required=True)
     image = fields.String(required=True)
     is_ghost = fields.Boolean()
-    is_follower = fields.Function(lambda user: Authenticator.get_instance().get_auth_user_without_auth_check().
-                                  am_following_user(user) if Authenticator.get_instance().
-                                  get_auth_user_without_auth_check() else False)
+    # is_follower = fields.Function(lambda user: Authenticator.get_instance().get_auth_user_without_auth_check().
+    #                               am_following_user(user) if Authenticator.get_instance().
+    #                               get_auth_user_without_auth_check() else False)
 
 
 class UserSummaryAnonSchema(Schema):
@@ -62,7 +62,7 @@ class UserSummaryAnonSchema(Schema):
     email = fields.String(required=True)
     image = fields.String(required=True)
     is_ghost = fields.Boolean(default=False)
-    is_follower = fields.Boolean(default=False)
+    # is_follower = fields.Boolean(default=False)
 
 
 class ChangeUserPasswordSerliazer(Schema):

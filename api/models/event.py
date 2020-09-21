@@ -221,14 +221,13 @@ class User(db.Model):
             self.is_ghost = is_ghost
 
     @classmethod
-    def create(cls, name=None, image=None, email=None, password=None, country=None, country_code=None, gender=None,
-               phone_number=None, is_ghost=False):
+    def create(cls, name=None, image=None, email=None, password=None, country=None, country_code=None, is_ghost=False):
 
         if cls.has_email(email):
             raise exceptions.UserAlreadyExists()
 
         user = cls(name=name, image=image, email=email, password=password, country=country, country_code=country_code,
-                   gender=gender, phone_number=phone_number, is_ghost=is_ghost)
+                    is_ghost=is_ghost)
 
         db.session.add(user)
         db.session.commit()
@@ -246,6 +245,7 @@ class User(db.Model):
         return db.session.query(db.session.query(User).filter(User.id == user_id).exists()).scalar()
 
     def change_password(self, new_password, new_password_confirmation):
+
         if new_password != new_password_confirmation:
             raise exceptions.user.PasswordConfirmationMismatch()
 
@@ -700,6 +700,64 @@ class EventOrganizer(db.Model):
             .all()
         return organizers
 
+    @staticmethod
+    def get_events_summary(category=None, organizer=None, period=None, cursor=None, is_published=True):
+
+        query = db.session.query(EventOrganizer).join(EventOrganizer.events).filter(EventOrganizer.id == organizer.id)
+
+        if is_published:
+            query = query.filter(Event.is_published == True)
+
+        if organizer:
+            query = query.filter(EventOrganizer.id == organizer.id)
+
+        if period and 'period' in period and 'value' in period:
+            period_type = period['period']
+            period_value = period['value']
+
+            if period_type == EventPeriods.TODAY:
+                query = query.filter(func.DATE(Event.start_datetime) == period_value)
+            elif period_type == EventPeriods.TOMORROW:
+                query = query.filter(func.DATE(Event.start_datetime) == period_value)
+            elif period_type == EventPeriods.THIS_WEEK:
+                [start_date, end_date] = period_value
+                query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
+            elif period_type == EventPeriods.THIS_MONTH:
+                [start_date, end_date] = period_value
+                query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
+            elif period_type == EventPeriods.NEXT_MONTH:
+                [start_date, end_date] = period_value
+                query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
+            elif period_type == EventPeriods.THIS_YEAR:
+                [start_date, end_date] = period_value
+                query = query.filter(func.DATE(Event.start_datetime).between(start_date, end_date))
+
+        if category:
+            query = query.filter(Event.category_id == category.id)
+
+        if cursor and cursor.after:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
+                                 < func.round(cursor.get_after_as_float(), 3))
+
+        elif cursor and cursor.before:
+            query = query.filter(func.round(cast(func.extract('EPOCH', Event.created_at), Numeric), 3)
+                                 > func.round(cursor.get_before_as_float(), 3))
+
+        organizer = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
+
+        print("organizer##", organizer, organizer.events)
+
+        # if events:
+        #     cursor.set_before(events[0].created_at)
+        #     cursor.set_after(events[-1].created_at)
+        #     cursor.set_has_more(Event.has_more_events_summary(category, period, cursor, is_published))
+        # else:
+        #     cursor.set_before(None)
+        #     cursor.set_after(None)
+        #     cursor.set_has_more(False)
+
+        return organizer.events
+
 
 # class EventOrganizer(db.Model):
 #     __tablename__ = 'event_organizers'
@@ -980,12 +1038,17 @@ class Event(db.Model):
         return len(more_events) > 0
 
     @staticmethod
-    def get_events_summary(category=None, period=None, cursor=None, is_published=True):
+    def get_events_summary(category=None, organizer=None, period=None, cursor=None, is_published=True):
 
         query = db.session.query(Event)
 
         if is_published:
             query = query.filter(Event.is_published == True)
+
+        if organizer:
+            query = query.filter(Event.organizers.id == organizer.id)
+
+        print("period##", period)
 
         if period and 'period' in period and 'value' in period:
             period_type = period['period']
@@ -1020,6 +1083,8 @@ class Event(db.Model):
                                  > func.round(cursor.get_before_as_float(), 3))
 
         events = query.order_by(Event.created_at.desc()).limit(cursor.limit).all()
+
+        print('events##', events)
 
         if events:
             cursor.set_before(events[0].created_at)
@@ -1421,7 +1486,7 @@ class Event(db.Model):
     def get_poster(self):
         image = db.session.query(EventMedia).filter(EventMedia.event_id == self.id).filter(
             EventMedia.poster == True).first()
-        return image.source_url if image else utils.NO_IMAGE
+        return image.source_url if image else general_utils.NO_IMAGE
 
 
 class EventMedia(db.Model):
@@ -1440,7 +1505,7 @@ class EventMedia(db.Model):
 
     def __init__(self, source_url=None, format=None, event=None, is_poster=False, public_id=None):
         self.id = str(uuid.uuid4())
-        self.filename = utils.gen_image_filename(self.id)
+        self.filename = general_utils.gen_image_filename(self.id)
         self.source_url = source_url
         self.format = format
         self.event = event
@@ -4250,21 +4315,17 @@ class PasswordChange(db.Model):
 
     @staticmethod
     def get_password_change(code):
-        return db.session.query(PasswordChange).filter(PasswordChange.code == code) \
-            .filter(PasswordChange.password_changed == False).first()
+        return db.session.query(PasswordChange).filter(PasswordChange.code == code).first()
 
-    @classmethod
-    def has_active_code(cls, code):
-        password_change = cls.get_password_change(code)
-        if password_change:
-            minutes_elapsed = (datetime.now() - password_change.created_at).seconds / 60
-            print("minute_elapse##", minutes_elapsed, cls.CODE_EXPIRATION_PERIOD)
-            if minutes_elapsed < cls.CODE_EXPIRATION_PERIOD:
-                return password_change
-        return False
+    def link_has_expired(self):
+        minutes_elapsed = (datetime.now() - self.created_at).seconds / 60
+        return minutes_elapsed < self.CODE_EXPIRATION_PERIOD
+
+    def link_is_used(self):
+        return self.password_changed
 
     def send_email_password_change_code(self, subject="You Have Requested A Password Reset"):
-        link = "".join([general_utils.CLIENT_BASE_URL, "/", "users", "/", "change-password", "?ref=", self.code])
+        link = "".join([general_utils.CLIENT_BASE_URL, "/", "change-password", "?ref=", self.code])
         subject = general_utils.APP_NAME + ": " + subject
         name = self.user.name.split(" ")[0]
         message = PasswordChange.message.format(name=name, link=link)

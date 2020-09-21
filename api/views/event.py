@@ -31,6 +31,7 @@ class EventView(AuthBaseView):
         output_query = False
         period_query = False
         category = None
+        organizer = None
         payload = {}
         auth_user = Authenticator.get_instance().get_auth_user_without_auth_check()
         cursor = self.get_cursor(request)
@@ -45,6 +46,9 @@ class EventView(AuthBaseView):
                 category_slug = request.args['category_slug']
                 if category_slug:
                     category = models.EventCategory.find_category_by_slug(category_slug)
+
+            if 'organizer_id' in request.args:
+                organizer = models.EventOrganizer.get_organizer(request.args['organizer_id'])
 
         if output_query and output_query == 'detail':
             if period_query:
@@ -82,6 +86,7 @@ class EventView(AuthBaseView):
             return response(payload)
         else:
             # summary of events
+            print("one##", period_query)
             if period_query:
                 if ',' in period_query:  # we have multiple period_query.eg. today,tomorrow,this_week
                     period_querys = [p.strip() for p in period_query.split(',')]
@@ -89,7 +94,7 @@ class EventView(AuthBaseView):
                     for period_query in period_querys:
                         cursor = PaginationCursor()
                         date = event_periods.EventPeriods.get_date(period_query)
-                        fetched_events = models.Event.get_events_summary(period=date, cursor=cursor)
+                        fetched_events = models.Event.get_events_summary(organizer=organizer, period=date, cursor=cursor)
                         if auth_user:
                             fetched_events = serializers.event_summary_schema.dump(fetched_events, many=True)
                         else:
@@ -114,7 +119,7 @@ class EventView(AuthBaseView):
                     return response(payload)
                 else:
                     date = event_periods.EventPeriods.get_date(period_query)
-                    events = models.Event.get_events_summary(category=category, period=date, cursor=cursor)
+                    events = models.Event.get_events_summary(organizer=organizer, category=category, period=date, cursor=cursor)
                     if auth_user:
                         events = serializers.event_summary_schema.dump(events, many=True)
                     else:
@@ -136,7 +141,8 @@ class EventView(AuthBaseView):
                     return response(payload)
 
             else:
-                events = models.Event.get_events_summary(category=category, cursor=cursor)
+                print("two##", period_query)
+                events = models.Event.get_events_summary(organizer=organizer, category=category, cursor=cursor)
                 if auth_user:
                     events = serializers.event_summary_schema.dump(events, many=True)
                 else:

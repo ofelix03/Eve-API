@@ -166,11 +166,11 @@ class EventSummarySchema(Schema):
     start_datetime = fields.DateTime(required=True)
     cover_image = fields.String(required=True)
     ticket_price = fields.Function(lambda event: event.ticket_types[0].price if event.ticket_types else 0)
-    is_bookmarked = fields.Function(lambda event: event.is_bookmarked_by(Authenticator.get_instance().get_auth_user()))
-    is_attending = fields.Function(lambda event: Authenticator.get_instance().get_auth_user().has_tickets_for_event(event))
+    is_bookmarked = fields.Function(lambda event: event.is_bookmarked_by(Authenticator.get_instance().get_auth_user_without_auth_check()))
+    is_attending = fields.Function(lambda event: Authenticator.get_instance().get_auth_user_without_auth_check().has_tickets_for_event(event))
     is_shareable_during_event = fields.Boolean()
     is_shareable_after_event = fields.Boolean()
-    has_purchased_tickets = fields.Function(lambda event: Authenticator.get_instance().get_auth_user().has_purchased_tickets_for_event(event))
+    has_purchased_tickets = fields.Function(lambda event: Authenticator.get_instance().get_auth_user_without_auth_check().has_purchased_tickets_for_event(event))
     created_at = fields.DateTime()
 
 

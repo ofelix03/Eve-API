@@ -45,18 +45,25 @@ class UserView(AuthBaseView):
             code = data['code']
             password = data['password']
             password_confirmation = data['password_confirmation']
-            if PasswordChange.has_active_code(code):
-                password_change = PasswordChange.get_password_change(code)
-                password_change.user.change_password(password, password_confirmation)
-                password_change.mark_password_changed()
-                return response({
-                    "ok": True
-                })
-            else:
+
+            password_change = PasswordChange.get_password_change(code)
+            if password_change.link_is_used():
                 return response({
                     "ok": False,
-                    "code": "PASSWORD_CHANGE_CODE_EXPIRED"
-                })
+                    "code": "PASSWORD_RESET_LINK_ALREADY_USED"
+                }, 400)
+
+            elif password_change.link_has_expired():
+                return response({
+                    "ok": False,
+                    "code": "RESET_PASSWORD_LINK_EXPIRED"
+                }, 400)
+
+            password_change.user.change_password(password, password_confirmation)
+            password_change.mark_password_changed()
+            return response({
+                "ok": True
+            })
         except exceptions.UserHasAlreadyUsedPassword:
             return response({
                 "ok": False,
@@ -112,8 +119,8 @@ class UserView(AuthBaseView):
 
             name = data['name']
             email = data['email']
-            gender = data['gender']
-            phone_number = data['phone_number']
+            # gender = data['gender']
+            # phone_number = data['phone_number']
             country_id = data['country_id']
 
             if not Country.has_country(country_id):
@@ -124,8 +131,7 @@ class UserView(AuthBaseView):
                     }
                 }, 401)
             country = Country.get_country(country_id)
-            user = User.create(name=name, email=email, password=password, country=country, gender=gender,
-                               phone_number=phone_number)
+            user = User.create(name=name, email=email, password=password, country=country)
 
             user.create_organizer()
 
@@ -162,7 +168,7 @@ class UserView(AuthBaseView):
                 return response({
                     "ok": False,
                     "errors": {
-                        "message": "Login failed. Check email and password"
+                        "message": "Wrong credentials. Check email and password"
                     }
                 }, 401)
 
@@ -172,7 +178,7 @@ class UserView(AuthBaseView):
                 return response({
                     "ok": False,
                     "errors": {
-                        "message": "Login failed. Check email and password"
+                        "message": "Wrong credentials. Check email and password"
                     }
                 }, 401)
 
@@ -193,7 +199,7 @@ class UserView(AuthBaseView):
             return response({
                 "ok": False,
                 "errors": {
-                    "message": "Login failed. Check email and password"
+                    "message": "Wrong credentials. Check email and password"
                 }
             }, 401)
 
